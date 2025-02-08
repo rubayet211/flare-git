@@ -9,37 +9,79 @@ export class AIReadmeGenerator {
 
   async generateReadme(profileData, preferences = {}) {
     try {
-      const systemPrompt = `You are an expert GitHub README designer specializing in creating modern, visually stunning profile READMEs.
-You MUST use ONLY GitHub-flavored Markdown syntax - DO NOT include any HTML or CSS.
+      const systemPrompt = `You are an expert GitHub README designer specializing in creating visually stunning profile READMEs.
+Your task is to create a README that follows proper markdown formatting and spacing rules:
 
-Your task is to create a README that stands out using GitHub-flavored Markdown features:
-- Use GitHub-flavored Markdown for all formatting
-- Utilize GitHub's built-in alignment and formatting syntax
-- Create visual appeal through strategic use of markdown elements
-- Incorporate GitHub-supported badges and widgets
-- Focus on clean, professional markdown structure
+FORMATTING RULES:
+1. Always add blank lines between sections
+2. Ensure proper heading hierarchy with spaces:
+   \`\`\`
+   # Heading 1
+   
+   ## Heading 2
+   
+   ### Heading 3
+   \`\`\`
+3. Use proper list formatting with blank lines:
+   \`\`\`
+   - Item 1
+   - Item 2
+   - Item 3
+   \`\`\`
+4. Center content with HTML:
+   \`\`\`
+   <div align="center">
+   
+   Content here
+   
+   </div>
+   \`\`\`
+5. Add proper spacing for badges:
+   \`\`\`
+   [![Badge1](url1)](link1) [![Badge2](url2)](link2)
+   \`\`\`
+6. Use HTML comments for section breaks:
+   \`\`\`
+   <!-- Section Title -->
+   \`\`\`
 
-Guidelines for the README (using ONLY Markdown):
-1. Use GitHub-flavored Markdown headers with emojis
-2. Incorporate GitHub's built-in profile widgets and stats cards
-3. Use markdown tables for structured layouts
-4. Add badges using shields.io or similar services
-5. Create clean section dividers using markdown syntax
-6. Ensure proper markdown spacing and alignment
-7. Use emojis strategically for visual appeal
-8. Include GitHub-supported markdown features
+REQUIRED SECTIONS:
+1. Header Banner (centered):
+   - Name in large text
+   - Title/Role
+   - Profile views counter
+   - Social badges
 
-The README should follow this structure (in Markdown):
-1. Profile header with GitHub stats card
-2. Brief, engaging introduction with badges
-3. Skills section using shield.io badges
-4. GitHub statistics using markdown tables
-5. Featured projects with repository cards
-6. Contribution graph using GitHub's built-in widget
-7. Contact information with branded badges
-8. Footer with profile views counter`;
+2. About Me:
+   - Brief introduction
+   - Current focus/interests
+   - Key skills/specialties
 
-      const userPrompt = `Create a professional GitHub profile README using ONLY GitHub-flavored Markdown (no HTML/CSS) with the following data:
+3. Skills & Tech Stack:
+   - Organized badge grid
+   - Category grouping
+   - Consistent badge styling
+
+4. GitHub Statistics:
+   - Stats card
+   - Language distribution
+   - Contribution graph
+   - Trophy showcase
+
+5. Featured Projects:
+   - Project cards
+   - Tech stack badges
+   - Brief descriptions
+
+6. Activity Graph:
+   - Contribution timeline
+   - Recent activity
+
+7. Connect Section:
+   - Social media links
+   - Contact information`;
+
+      const userPrompt = `Create a professionally formatted GitHub profile README using the following data:
 
 User Information:
 - Name: ${profileData.user.name}
@@ -66,30 +108,74 @@ Skills and Specializations:
 ${JSON.stringify(profileData.github?.skills || [], null, 2)}
 ${JSON.stringify(profileData.github?.specializations || [], null, 2)}
 
-Style Preferences:
-${JSON.stringify(preferences, null, 2)}
+Requirements:
+1. Start with a centered header section:
+   \`\`\`html
+   <div align="center">
+   
+   # Your Name
+   Your Title/Role
+   
+   [![Profile Views](https://komarev.com/ghpvc/?username=USERNAME&color=blueviolet)](https://github.com/USERNAME)
+   
+   </div>
+   \`\`\`
 
-Requirements (USING ONLY GITHUB-FLAVORED MARKDOWN):
-1. Use markdown headers with appropriate levels (#, ##, ###)
-2. Include GitHub profile stats cards using markdown image syntax
-3. Create tables using markdown syntax (|---|---|)
-4. Add badges using shield.io markdown syntax
-5. Ensure proper markdown spacing and formatting
-6. Include GitHub activity widgets using markdown
-7. Use appropriate emojis as bullet points
-8. Add markdown-compatible links and images
-9. Include GitHub achievement cards
-10. Format for both light and dark themes using markdown
+2. Add a visually appealing about section with proper spacing:
+   \`\`\`markdown
+   ## About Me
+   
+   Brief introduction here...
+   
+   - Point 1
+   - Point 2
+   - Point 3
+   \`\`\`
 
-Example widgets to include (in markdown format):
-- GitHub Stats Card: ![GitHub stats](https://github-readme-stats.vercel.app/api?username=USERNAME)
-- Top Languages: ![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=USERNAME)
-- Profile Views: ![Profile Views](https://komarev.com/ghpvc/?username=USERNAME)
-- GitHub Streak: ![GitHub Streak](https://github-readme-streak-stats.herokuapp.com/?user=USERNAME)
-- Activity Graph: ![Activity Graph](https://activity-graph.herokuapp.com/graph?username=USERNAME)
+3. Create a skills section with properly spaced badges:
+   \`\`\`markdown
+   ## Skills
+   
+   ![Skill1](badge-url) ![Skill2](badge-url)
+   \`\`\`
 
-Replace USERNAME with the actual GitHub username in the final output.
-DO NOT include any HTML or CSS - use ONLY GitHub-flavored Markdown syntax.`;
+4. Add GitHub stats with proper alignment:
+   \`\`\`html
+   <div align="center">
+   
+   ![Stats](https://github-readme-stats.vercel.app/api?username=USERNAME)
+   
+   ![Languages](https://github-readme-stats.vercel.app/api/top-langs/?username=USERNAME)
+   
+   </div>
+   \`\`\`
+
+5. Format the projects section with cards:
+   \`\`\`markdown
+   ## Projects
+   
+   <div align="center">
+   
+   [![Project1](card-url)](project-link)
+   
+   </div>
+   \`\`\`
+
+6. Add activity graph with proper spacing:
+   \`\`\`markdown
+   ## Activity
+   
+   ![Activity](graph-url)
+   \`\`\`
+
+7. End with a properly formatted connect section:
+   \`\`\`markdown
+   ## Connect With Me
+   
+   [![Twitter](badge-url)](link) [![LinkedIn](badge-url)](link)
+   \`\`\`
+
+Ensure all sections have proper spacing and markdown formatting.`;
 
       const response = await fetch(this.apiEndpoint, {
         method: "POST",
@@ -98,7 +184,7 @@ DO NOT include any HTML or CSS - use ONLY GitHub-flavored Markdown syntax.`;
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: "google/gemini-2.0-flash-lite-preview-02-05:free",
+          model: "deepseek/deepseek-r1-distill-llama-70b:free",
           messages: [
             {
               role: "system",
@@ -126,10 +212,15 @@ DO NOT include any HTML or CSS - use ONLY GitHub-flavored Markdown syntax.`;
         throw new Error("No README content generated");
       }
 
-      // Ensure the content is properly formatted as markdown
+      // Clean up the markdown content
       const cleanedContent = readmeContent
-        .replace(/<[^>]*>/g, "") // Remove any HTML tags
-        .replace(/\n\s*\n/g, "\n\n"); // Fix spacing
+        .replace(/\n{3,}/g, "\n\n") // Replace multiple newlines with double newlines
+        .replace(/\n\s*\n/g, "\n\n") // Standardize spacing between sections
+        .replace(/(\n#{1,})/g, "\n\n$1") // Add proper spacing before headers
+        .replace(/(\n<div)/g, "\n\n<div") // Add proper spacing before divs
+        .replace(/(<\/div>)\n/g, "$1\n\n") // Add proper spacing after divs
+        .replace(/!\[([^\]]+)\]\(([^)]+)\)(?!\n\n)/g, "![$1]($2)\n\n") // Add proper spacing after images
+        .trim();
 
       return cleanedContent;
     } catch (error) {
@@ -147,7 +238,7 @@ DO NOT include any HTML or CSS - use ONLY GitHub-flavored Markdown syntax.`;
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: "openai/gpt-4",
+          model: "deepseek/deepseek-r1-distill-llama-70b:free",
           messages: [
             {
               role: "system",
