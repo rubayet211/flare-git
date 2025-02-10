@@ -24,6 +24,7 @@ import { GitHubService } from "@/lib/github";
 import { GitHubAnalytics } from "@/components/github-analytics";
 import { ReadmeEditor } from "@/components/readme-editor";
 import { ReadmeGenerator } from "@/components/readme-generator";
+import { RepositoryReadmeGenerator } from "@/components/repository-readme-generator";
 
 const defaultTheme = {
   primary: "#3b82f6",
@@ -235,10 +236,9 @@ export default function Dashboard() {
       <Tabs defaultValue="profile" className="space-y-4">
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="appearance">Appearance</TabsTrigger>
-          <TabsTrigger value="readme">README</TabsTrigger>
-          <TabsTrigger value="projects">Projects</TabsTrigger>
+          <TabsTrigger value="repositories">Repositories</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">
@@ -417,7 +417,29 @@ export default function Dashboard() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="appearance" className="space-y-4">
+        <TabsContent value="repositories">
+          <RepositoryReadmeGenerator />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Analytics</CardTitle>
+              <CardDescription>
+                View your GitHub activity and statistics
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {profile?.githubUsername ? (
+                <GitHubAnalytics username={profile.githubUsername} />
+              ) : (
+                <p>GitHub username not found. Please update your profile.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
@@ -467,49 +489,6 @@ export default function Dashboard() {
               <ThemePreview theme={theme} profile={profile} />
             </div>
           </div>
-        </TabsContent>
-
-        <TabsContent value="readme" className="space-y-4">
-          <ReadmeGenerator />
-        </TabsContent>
-
-        <TabsContent value="projects" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Projects</CardTitle>
-              <CardDescription>
-                Select repositories to feature on your profile
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RepositoryList
-                repositories={filteredRepositories}
-                featuredProjects={profile.featuredProjects}
-                onToggleFeature={handleToggleFeature}
-                searchQuery={searchQuery}
-                onSearch={setSearchQuery}
-                loading={loadingRepos}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Analytics</CardTitle>
-              <CardDescription>
-                View your GitHub activity and statistics
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {profile?.githubUsername ? (
-                <GitHubAnalytics username={profile.githubUsername} />
-              ) : (
-                <p>GitHub username not found. Please update your profile.</p>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

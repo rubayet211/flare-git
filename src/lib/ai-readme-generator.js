@@ -270,4 +270,140 @@ Add relevant GitHub widgets and stats cards where appropriate.`;
       throw new Error(`Failed to generate README preview: ${error.message}`);
     }
   }
+
+  async generateRepositoryReadme(repository, existingReadme, files) {
+    try {
+      const systemPrompt = `You are a technical documentation expert specializing in creating comprehensive and well-structured GitHub repository READMEs.
+Your task is to analyze the repository data and generate an enhanced README.md that follows best practices:
+
+FORMATTING RULES:
+1. Use clear section hierarchy with proper spacing
+2. Include relevant badges (build status, version, license)
+3. Add descriptive code blocks with proper language syntax
+4. Use tables for complex data presentation
+5. Include visual elements (architecture diagrams, screenshots) placeholders
+
+REQUIRED SECTIONS:
+1. Project Title & Description:
+   - Clear, concise project name
+   - Brief description of purpose
+   - Key features
+   - Status badges
+
+2. Technologies & Dependencies:
+   - List of main technologies
+   - Framework versions
+   - System requirements
+
+3. Getting Started:
+   - Prerequisites
+   - Installation steps
+   - Basic configuration
+   - Quick start example
+
+4. Usage:
+   - Common use cases
+   - Code examples
+   - API documentation
+   - Configuration options
+
+5. Project Structure:
+   - Directory layout
+   - Key files explanation
+   - Architecture overview
+
+6. Development:
+   - Setup instructions
+   - Testing procedures
+   - Contribution guidelines
+   - Code style guide
+
+7. Deployment:
+   - Build process
+   - Environment setup
+   - Deployment steps
+
+8. Additional Information:
+   - License
+   - Authors/Team
+   - Acknowledgments
+   - Changelog
+   - Support/Contact`;
+
+      const userPrompt = `Please generate an enhanced README.md for the following repository:
+
+Repository Information:
+Name: ${repository.name}
+Description: ${repository.description || "No description provided"}
+Language: ${repository.language || "Not specified"}
+Topics: ${repository.topics?.join(", ") || "None"}
+
+Existing README Content:
+${existingReadme || "No existing README"}
+
+File Structure:
+${files.map((file) => `- ${file.path}`).join("\n")}
+
+Requirements:
+1. Maintain any valuable information from the existing README
+2. Enhance the structure and organization
+3. Add missing sections based on the file structure
+4. Include relevant badges and links
+5. Add code examples where appropriate
+6. Ensure proper Markdown formatting
+7. Focus on developer-friendly documentation
+
+Please generate a comprehensive README.md that makes the repository more accessible and professional.`;
+
+      const response = await fetch(this.apiEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek/deepseek-r1-distill-llama-70b:free",
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt,
+            },
+            {
+              role: "user",
+              content: userPrompt,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || `API request failed with status ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      const readmeContent = data.choices?.[0]?.message?.content;
+
+      if (!readmeContent) {
+        throw new Error("No README content generated");
+      }
+
+      // Clean up the markdown content
+      const cleanedContent = readmeContent
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/\n\s*\n/g, "\n\n")
+        .replace(/(\n#{1,})/g, "\n\n$1")
+        .replace(/(\n<div)/g, "\n\n<div")
+        .replace(/(<\/div>)\n/g, "$1\n\n")
+        .replace(/!\[([^\]]+)\]\(([^)]+)\)(?!\n\n)/g, "![$1]($2)\n\n")
+        .trim();
+
+      return cleanedContent;
+    } catch (error) {
+      console.error("Error generating repository README:", error);
+      throw new Error(`Failed to generate repository README: ${error.message}`);
+    }
+  }
 }

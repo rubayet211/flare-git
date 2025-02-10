@@ -244,4 +244,111 @@ export class GitHubService {
       throw error;
     }
   }
+
+  async getRepositoryReadme(owner, repo) {
+    try {
+      const { data } = await this.octokit.rest.repos.getReadme({
+        owner,
+        repo,
+        mediaType: {
+          format: "raw",
+        },
+      });
+      return data;
+    } catch (error) {
+      if (error.status === 404) {
+        return ""; // Return empty string if README doesn't exist
+      }
+      throw error;
+    }
+  }
+
+  async getRepositoryFiles(owner, repo) {
+    try {
+      const { data: tree } = await this.octokit.rest.git.getTree({
+        owner,
+        repo,
+        tree_sha: "main", // Try main branch first
+        recursive: true,
+      });
+
+      // Filter out binary files and large files
+      return tree.tree
+        .filter(
+          (file) =>
+            file.type === "blob" &&
+            file.size < 1000000 && // Less than 1MB
+            !file.path.match(
+              /\.(jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$/i
+            )
+        )
+        .map((file) => ({
+          path: file.path,
+          size: file.size,
+          type: file.type,
+          url: file.url,
+        }));
+    } catch (error) {
+      if (error.status === 404) {
+        // Try 'master' branch if 'main' doesn't exist
+        try {
+          const { data: tree } = await this.octokit.rest.git.getTree({
+            owner,
+            repo,
+            tree_sha: "master",
+            recursive: true,
+          });
+
+          return tree.tree
+            .filter(
+              (file) =>
+                file.type === "blob" &&
+                file.size < 1000000 &&
+                !file.path.match(
+                  /\.(jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$/i
+                )
+            )
+            .map((file) => ({
+              path: file.path,
+              size: file.size,
+              type: file.type,
+              url: file.url,
+            }));
+        } catch (masterError) {
+          return []; // Return empty array if neither branch exists
+        }
+      }
+      throw error;
+    }
+  }
+
+  async updateRepositoryReadme(owner, repo, content) {
+    try {
+      // First, try to get the current README to get its SHA
+      let sha;
+      try {
+        const { data } = await this.octokit.rest.repos.getContent({
+          owner,
+          repo,
+          path: "README.md",
+        });
+        sha = data.sha;
+      } catch (error) {
+        // If README doesn't exist, sha will remain undefined
+      }
+
+      // Update or create the README
+      await this.octokit.rest.repos.createOrUpdateFileContents({
+        owner,
+        repo,
+        path: "README.md",
+        message: "Update README.md via FlareGit",
+        content: Buffer.from(content).toString("base64"),
+        sha, // Will create new file if sha is undefined
+      });
+    } catch (error) {
+      console.error("Error updating README:", error);
+      throw error;
+    }
+  }
 }

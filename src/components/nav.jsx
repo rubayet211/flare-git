@@ -108,6 +108,9 @@ export function MainNav() {
                 <DropdownMenuItem asChild>
                   <Link href="/dashboard">Dashboard</Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/u/${session.user.username}`}>View Profile</Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="cursor-pointer"
