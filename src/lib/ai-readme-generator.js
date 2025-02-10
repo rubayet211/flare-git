@@ -9,7 +9,38 @@ export class AIReadmeGenerator {
 
   async generateReadme(profileData, preferences = {}) {
     try {
-      const systemPrompt = `You are an expert GitHub README designer specializing in creating visually stunning profile READMEs.
+      const formatLanguages = (languages) => {
+        if (!languages || !Array.isArray(languages))
+          return "No language data available";
+        return languages
+          .map((lang) => `- ${lang.name}: ${lang.percentage}%`)
+          .join("\n");
+      };
+
+      const formatProjects = (projects) => {
+        if (!projects || !Array.isArray(projects))
+          return "No featured projects available";
+        return projects
+          .map(
+            (project) => `
+### ${project.name || "Untitled Project"}
+${project.description || "No description available"}
+${project.url ? `🔗 [View Project](${project.url})` : ""}
+${project.language ? `\n**Language:** ${project.language}` : ""}
+${project.stars ? `⭐ Stars: ${project.stars}` : ""} ${
+              project.forks ? `🔱 Forks: ${project.forks}` : ""
+            }
+${
+  project.topics && project.topics.length > 0
+    ? `\n**Topics:** ${project.topics.join(", ")}`
+    : ""
+}
+`
+          )
+          .join("\n");
+      };
+
+      const systemPrompt = `You are a README.md generator that creates professional and visually appealing GitHub profile READMEs.
 Your task is to create a README that follows proper markdown formatting and spacing rules:
 
 FORMATTING RULES:
@@ -81,101 +112,66 @@ REQUIRED SECTIONS:
    - Social media links
    - Contact information`;
 
-      const userPrompt = `Create a professionally formatted GitHub profile README using the following data:
+      const userPrompt = `Please generate a GitHub profile README.md with the following information:
 
 User Information:
-- Name: ${profileData.user.name}
-- GitHub Username: ${profileData.flaregit.githubUsername}
-- Bio: ${profileData.github?.bio || ""}
-- Location: ${profileData.flaregit.location || ""}
-- Website: ${profileData.flaregit.website || ""}
-- Twitter: ${profileData.flaregit.twitter || ""}
-- LinkedIn: ${profileData.flaregit.linkedin || ""}
+- Name: ${profileData.user?.name || "Anonymous"}
+- GitHub Username: ${profileData.flaregit?.githubUsername || "Not provided"}
+- Bio: ${profileData.user?.bio || "No bio provided"}
+- Location: ${profileData.flaregit?.location || "Not specified"}
+- Website: ${profileData.flaregit?.website || "Not provided"}
+- Twitter: ${profileData.flaregit?.twitter || "Not provided"}
+- LinkedIn: ${profileData.flaregit?.linkedin || "Not provided"}
 
 GitHub Statistics:
 - Total Repositories: ${profileData.github?.repositories?.total || 0}
 - Total Stars: ${profileData.github?.repositories?.totalStars || 0}
 - Total Contributions: ${profileData.github?.contributions?.total || 0}
-- Top Languages: ${JSON.stringify(
-        profileData.github?.repositories?.languageDistribution || []
-      )}
-- Activity Level: ${profileData.github?.activityLevel || ""}
+- Activity Level: ${profileData.github?.activityLevel || "Not available"}
+
+Language Distribution:
+${formatLanguages(profileData.github?.repositories?.languageDistribution)}
 
 Featured Projects:
-${JSON.stringify(profileData.github?.repositories?.top || [], null, 2)}
+${formatProjects(profileData.github?.repositories?.top)}
 
-Skills and Specializations:
-${JSON.stringify(profileData.github?.skills || [], null, 2)}
-${JSON.stringify(profileData.github?.specializations || [], null, 2)}
+Skills:
+${
+  profileData.github?.skills?.length > 0
+    ? profileData.github.skills.map((skill) => `- ${skill}`).join("\n")
+    : "No skills data available"
+}
 
-Requirements:
-1. Start with a centered header section:
-   \`\`\`html
-   <div align="center">
-   
-   # Your Name
-   Your Title/Role
-   
-   [![Profile Views](https://komarev.com/ghpvc/?username=USERNAME&color=blueviolet)](https://github.com/USERNAME)
-   
-   </div>
-   \`\`\`
+Specializations:
+${
+  profileData.github?.specializations?.length > 0
+    ? profileData.github.specializations.map((spec) => `- ${spec}`).join("\n")
+    : "No specialization data available"
+}
 
-2. Add a visually appealing about section with proper spacing:
-   \`\`\`markdown
-   ## About Me
-   
-   Brief introduction here...
-   
-   - Point 1
-   - Point 2
-   - Point 3
-   \`\`\`
+Recent Contributions:
+${
+  profileData.github?.contributions?.trends
+    ? "Last 6 months: " +
+      profileData.github.contributions.trends
+        .map((t) => `${t.date}: ${t.count} contributions`)
+        .join(", ")
+    : "No recent contribution data available"
+}
 
-3. Create a skills section with properly spaced badges:
-   \`\`\`markdown
-   ## Skills
-   
-   ![Skill1](badge-url) ![Skill2](badge-url)
-   \`\`\`
+Contribution Breakdown:
+${
+  profileData.github?.contributions?.breakdown
+    ? Object.entries(profileData.github.contributions.breakdown)
+        .map(([key, value]) => `- ${key}: ${value}`)
+        .join("\n")
+    : "No contribution breakdown available"
+}
 
-4. Add GitHub stats with proper alignment:
-   \`\`\`html
-   <div align="center">
-   
-   ![Stats](https://github-readme-stats.vercel.app/api?username=USERNAME)
-   
-   ![Languages](https://github-readme-stats.vercel.app/api/top-langs/?username=USERNAME)
-   
-   </div>
-   \`\`\`
-
-5. Format the projects section with cards:
-   \`\`\`markdown
-   ## Projects
-   
-   <div align="center">
-   
-   [![Project1](card-url)](project-link)
-   
-   </div>
-   \`\`\`
-
-6. Add activity graph with proper spacing:
-   \`\`\`markdown
-   ## Activity
-   
-   ![Activity](graph-url)
-   \`\`\`
-
-7. End with a properly formatted connect section:
-   \`\`\`markdown
-   ## Connect With Me
-   
-   [![Twitter](badge-url)](link) [![LinkedIn](badge-url)](link)
-   \`\`\`
-
-Ensure all sections have proper spacing and markdown formatting.`;
+Please create a professional README.md that highlights these achievements and makes the profile stand out.
+Use appropriate emojis, badges, and formatting to make it visually appealing.
+Ensure proper spacing and section organization.
+Add relevant GitHub widgets and stats cards where appropriate.`;
 
       const response = await fetch(this.apiEndpoint, {
         method: "POST",
