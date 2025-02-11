@@ -10,11 +10,10 @@ export class GitHubService {
 
   async getRepositories(username) {
     try {
-      const { data } = await this.octokit.rest.repos.listForUser({
-        username,
+      const { data } = await this.octokit.rest.repos.listForAuthenticatedUser({
         sort: "updated",
         per_page: 100,
-        type: "owner",
+        affiliation: "owner",
       });
 
       return data.map((repo) => ({

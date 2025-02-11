@@ -8,6 +8,82 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RepositorySelector } from "@/components/repository-selector";
 import { Eye, Code, Copy, Download, CheckCircle2, Github } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+
+// Custom components for ReactMarkdown
+const MarkdownComponents = {
+  h1: ({ node, ...props }) => (
+    <h1 className="text-2xl font-bold mb-4" {...props} />
+  ),
+  h2: ({ node, ...props }) => (
+    <h2 className="text-xl font-bold mb-3" {...props} />
+  ),
+  h3: ({ node, ...props }) => (
+    <h3 className="text-lg font-bold mb-2" {...props} />
+  ),
+  p: ({ node, ...props }) => <p className="mb-4" {...props} />,
+  a: ({ node, ...props }) => (
+    <a
+      className="text-primary hover:underline"
+      target="_blank"
+      rel="noopener noreferrer"
+      {...props}
+    />
+  ),
+  ul: ({ node, ...props }) => <ul className="list-disc pl-6 mb-4" {...props} />,
+  ol: ({ node, ...props }) => (
+    <ol className="list-decimal pl-6 mb-4" {...props} />
+  ),
+  li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+  code: ({ node, inline, className, children, ...props }) => {
+    const match = /language-(\w+)/.exec(className || "");
+    const language = match ? match[1] : "";
+    if (inline) {
+      return (
+        <code className="rounded bg-muted px-1 py-0.5" {...props}>
+          {children}
+        </code>
+      );
+    }
+    return (
+      <pre className="overflow-x-auto rounded-lg bg-muted p-4 mb-4">
+        <code className={language ? `language-${language}` : ""} {...props}>
+          {children}
+        </code>
+      </pre>
+    );
+  },
+  img: ({ node, ...props }) => (
+    <img
+      className="max-w-full rounded-lg my-4"
+      {...props}
+      alt={props.alt || ""}
+    />
+  ),
+  table: ({ node, ...props }) => (
+    <div className="overflow-x-auto mb-4">
+      <table
+        className="w-full border-collapse border border-border"
+        {...props}
+      />
+    </div>
+  ),
+  th: ({ node, ...props }) => (
+    <th className="border border-border bg-muted p-2 text-left" {...props} />
+  ),
+  td: ({ node, ...props }) => (
+    <td className="border border-border p-2" {...props} />
+  ),
+  blockquote: ({ node, ...props }) => (
+    <blockquote
+      className="border-l-4 border-primary pl-4 italic my-4"
+      {...props}
+    />
+  ),
+  hr: ({ node, ...props }) => <hr className="border-border my-4" {...props} />,
+};
 
 export function RepositoryReadmeGenerator() {
   const { data: session } = useSession();
@@ -195,28 +271,14 @@ export function RepositoryReadmeGenerator() {
 
           <Card className="min-h-[500px] w-full overflow-hidden rounded-lg border bg-card">
             {isPreview ? (
-              <div className="prose prose-sm max-w-none p-4 dark:prose-invert">
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: content
-                      .replace(/&/g, "&amp;")
-                      .replace(/</g, "&lt;")
-                      .replace(/>/g, "&gt;")
-                      .replace(/"/g, "&quot;")
-                      .replace(/'/g, "&#039;")
-                      .replace(/\n/g, "<br />")
-                      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                      .replace(/\*(.*?)\*/g, "<em>$1</em>")
-                      .replace(
-                        /\[([^\]]+)\]\(([^)]+)\)/g,
-                        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-                      )
-                      .replace(/#{3} (.*)/g, "<h3>$1</h3>")
-                      .replace(/#{2} (.*)/g, "<h2>$1</h2>")
-                      .replace(/# (.*)/g, "<h1>$1</h1>")
-                      .replace(/- (.*)/g, "• $1"),
-                  }}
-                />
+              <div className="prose prose-sm max-w-none overflow-y-auto p-4 dark:prose-invert">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                  components={MarkdownComponents}
+                >
+                  {content}
+                </ReactMarkdown>
               </div>
             ) : (
               <textarea

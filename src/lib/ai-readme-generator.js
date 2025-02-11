@@ -180,7 +180,7 @@ Add relevant GitHub widgets and stats cards where appropriate.`;
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-r1-distill-llama-70b:free",
+          model: "google/gemini-2.0-pro-exp-02-05:free",
           messages: [
             {
               role: "system",
@@ -227,23 +227,60 @@ Add relevant GitHub widgets and stats cards where appropriate.`;
 
   async previewReadme(content) {
     try {
-      const response = await fetch(`${this.apiEndpoint}/preview`, {
+      const systemPrompt = `You are an expert README preview generator specializing in GitHub-flavored markdown.
+Your task is to format and enhance README content while maintaining proper markdown syntax.
+
+Key Requirements:
+- Use proper markdown syntax for all formatting
+- Avoid raw HTML unless absolutely necessary
+- Create clear section hierarchy with markdown headers
+- Use markdown tables instead of HTML tables
+- Properly format code blocks with language specification
+- Use markdown syntax for images and badges
+- Maintain clean, consistent spacing
+- Preserve all links and references
+
+Format Guidelines:
+1. Use proper markdown heading levels (# ## ###)
+2. Format lists with proper indentation
+3. Use markdown tables with aligned columns
+4. Create code blocks with language specification
+5. Use proper image and link markdown syntax
+6. Maintain consistent line spacing
+7. Use markdown blockquotes where appropriate`;
+
+      const userPrompt = `Format and enhance the following README content using proper markdown syntax:
+
+${content}
+
+Ensure:
+1. All sections use proper markdown headers
+2. Code blocks specify their language
+3. Tables are properly formatted in markdown
+4. Images and badges use markdown syntax
+5. Lists are properly indented
+6. Links use markdown format
+7. Blockquotes use proper markdown syntax
+8. Consistent spacing between sections
+9. Proper emphasis using markdown (* and **)
+10. Clean and readable formatting`;
+
+      const response = await fetch(this.apiEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-r1-distill-llama-70b:free",
+          model: "google/gemini-2.0-pro-exp-02-05:free",
           messages: [
             {
               role: "system",
-              content:
-                "You are a README preview generator that formats and enhances README content.",
+              content: systemPrompt,
             },
             {
               role: "user",
-              content: content,
+              content: userPrompt,
             },
           ],
         }),
@@ -264,7 +301,22 @@ Add relevant GitHub widgets and stats cards where appropriate.`;
         throw new Error("No preview content generated");
       }
 
-      return previewContent;
+      // Clean up and standardize the preview content
+      const cleanedPreview = previewContent
+        .replace(/\n{3,}/g, "\n\n") // Standardize multiple newlines
+        .replace(/\n\s*\n/g, "\n\n") // Fix spacing between sections
+        .replace(/(\n#{1,})/g, "\n\n$1") // Add proper spacing before headers
+        .replace(/(\n<div)/g, "\n\n<div") // Add proper spacing before divs
+        .replace(/(<\/div>)\n/g, "$1\n\n") // Add proper spacing after divs
+        .replace(/(<\/table>)\n/g, "$1\n\n") // Add proper spacing after tables
+        .replace(/(<\/details>)\n/g, "$1\n\n") // Add proper spacing after collapsible sections
+        .replace(/!\[([^\]]+)\]\(([^)]+)\)(?!\n\n)/g, "![$1]($2)\n\n") // Fix image spacing
+        .replace(/<\/h([1-6])>\n(?!\n)/g, "</h$1>\n\n") // Add proper spacing after headings
+        .replace(/<\/p>\n(?!\n)/g, "</p>\n\n") // Add proper spacing after paragraphs
+        .replace(/```\n(?!\n)/g, "```\n\n") // Add proper spacing after code blocks
+        .trim();
+
+      return cleanedPreview;
     } catch (error) {
       console.error("Error generating README preview:", error);
       throw new Error(`Failed to generate README preview: ${error.message}`);
@@ -273,87 +325,175 @@ Add relevant GitHub widgets and stats cards where appropriate.`;
 
   async generateRepositoryReadme(repository, existingReadme, files) {
     try {
-      const systemPrompt = `You are a technical documentation expert specializing in creating comprehensive and well-structured GitHub repository READMEs.
-Your task is to analyze the repository data and generate an enhanced README.md that follows best practices:
+      const systemPrompt = `You are an expert technical documentation writer and UI/UX specialist creating modern, visually stunning GitHub READMEs.
+Your task is to create a README that not only documents the project but also serves as an impressive landing page.
 
-FORMATTING RULES:
-1. Use clear section hierarchy with proper spacing
-2. Include relevant badges (build status, version, license)
-3. Add descriptive code blocks with proper language syntax
-4. Use tables for complex data presentation
-5. Include visual elements (architecture diagrams, screenshots) placeholders
+Key Principles:
+- Create visually striking headers with centered badges and logos
+- Use modern GitHub-style formatting and layout
+- Implement creative ASCII/Unicode art where appropriate
+- Balance visual appeal with professional documentation
+- Ensure mobile-friendly formatting
+- Use gradient text effects for key headings (using HTML when needed)
+- Create visually distinct sections with clear separation
+- Use modern documentation patterns like collapsible sections and tabs`;
 
-REQUIRED SECTIONS:
-1. Project Title & Description:
-   - Clear, concise project name
-   - Brief description of purpose
-   - Key features
-   - Status badges
+      const userPrompt = `Create a stunning, modern README.md that serves as both documentation and a project landing page:
 
-2. Technologies & Dependencies:
-   - List of main technologies
-   - Framework versions
-   - System requirements
+Repository Details:
+- Name: ${repository.name}
+- Description: ${repository.description || "No description provided"}
+- Primary Language: ${repository.language || "Not specified"}
+- Topics/Tags: ${repository.topics?.join(", ") || "None"}
+- Stars: ${repository.stargazers_count || 0}
+- Forks: ${repository.forks_count || 0}
 
-3. Getting Started:
-   - Prerequisites
-   - Installation steps
-   - Basic configuration
-   - Quick start example
+Project Structure:
+\`\`\`
+${files.map((file) => file.path).join("\n")}
+\`\`\`
 
-4. Usage:
-   - Common use cases
-   - Code examples
-   - API documentation
-   - Configuration options
-
-5. Project Structure:
-   - Directory layout
-   - Key files explanation
-   - Architecture overview
-
-6. Development:
-   - Setup instructions
-   - Testing procedures
-   - Contribution guidelines
-   - Code style guide
-
-7. Deployment:
-   - Build process
-   - Environment setup
-   - Deployment steps
-
-8. Additional Information:
-   - License
-   - Authors/Team
-   - Acknowledgments
-   - Changelog
-   - Support/Contact`;
-
-      const userPrompt = `Please generate an enhanced README.md for the following repository:
-
-Repository Information:
-Name: ${repository.name}
-Description: ${repository.description || "No description provided"}
-Language: ${repository.language || "Not specified"}
-Topics: ${repository.topics?.join(", ") || "None"}
-
-Existing README Content:
+Previous README (to preserve relevant information):
+\`\`\`markdown
 ${existingReadme || "No existing README"}
+\`\`\`
 
-File Structure:
-${files.map((file) => `- ${file.path}`).join("\n")}
+Create a README with this modern structure:
 
-Requirements:
-1. Maintain any valuable information from the existing README
-2. Enhance the structure and organization
-3. Add missing sections based on the file structure
-4. Include relevant badges and links
-5. Add code examples where appropriate
-6. Ensure proper Markdown formatting
-7. Focus on developer-friendly documentation
+1. Header Section (Visually Striking)
+   - Large centered project name with custom font styling
+   - Animated badges row (build, version, license, stars, etc.)
+   - Brief, impactful project description
+   - Quick links with custom icons
+   - Visual preview (screenshot/GIF) in a styled container
 
-Please generate a comprehensive README.md that makes the repository more accessible and professional.`;
+2. Key Features (Visual Grid)
+   - Feature cards with icons
+   - Visual demonstrations
+   - Code preview snippets in styled containers
+   - Feature comparison table if applicable
+
+3. Quick Start (Developer-Friendly)
+   - One-line installation command in a styled box
+   - Basic usage example in a syntax-highlighted block
+   - Common commands in a styled table
+   - Environment setup in collapsible sections
+
+4. Documentation (Well-Structured)
+   - Clear navigation with jump links
+   - API documentation in modern table format
+   - Configuration options in collapsible sections
+   - Examples with copy-to-clipboard buttons
+
+5. Project Architecture
+   - Visual architecture diagram
+   - Directory structure in a styled tree
+   - Component relationships diagram
+   - Tech stack badges in a grid
+
+6. Development Guide
+   - Prerequisites checklist
+   - Step-by-step setup guide
+   - Development workflow diagram
+   - Testing instructions in collapsible sections
+
+7. Community & Support
+   - Contribution workflow diagram
+   - Code of conduct summary
+   - Support channels with badges
+   - Contributors section with avatars
+
+8. Footer
+   - License badge and summary
+   - Author information with social links
+   - Project status badges
+   - "Made with ❤️" section
+
+Styling Requirements:
+1. Use HTML for enhanced styling where appropriate:
+   \`\`\`html
+   <h1 align="center">
+     <img src="logo.png" alt="Logo" width="200px"><br>
+     Project Name
+   </h1>
+   <p align="center">
+     <a href="#"><img src="badge1.svg" alt="badge1"></a>
+     <a href="#"><img src="badge2.svg" alt="badge2"></a>
+   </p>
+   \`\`\`
+
+2. Create visually distinct sections:
+   \`\`\`html
+   <div align="center">
+   <table>
+   <tr>
+   <td width="50%">
+     <h3 align="center">Feature 1</h3>
+     <p align="center">
+       <img src="feature1.gif" alt="Feature 1" width="100%">
+     </p>
+   </td>
+   <td width="50%">
+     <h3 align="center">Feature 2</h3>
+     <p align="center">
+       <img src="feature2.gif" alt="Feature 2" width="100%">
+     </p>
+   </td>
+   </tr>
+   </table>
+   </div>
+   \`\`\`
+
+3. Use modern badges and shields:
+   - Dynamic GitHub stats badges
+   - Custom-styled shields.io badges
+   - Technology stack badges
+   - Status and version badges
+
+4. Implement collapsible sections:
+   \`\`\`html
+   <details>
+   <summary>📖 Detailed Documentation</summary>
+   
+   Content here...
+   </details>
+   \`\`\`
+
+5. Add styled code blocks:
+   \`\`\`html
+   <pre>
+   <code>
+   npm install your-package
+   </code>
+   </pre>
+   \`\`\`
+
+6. Create feature highlights:
+   \`\`\`html
+   <div align="center">
+   <table>
+   <tr>
+   <th>Feature</th>
+   <th>Description</th>
+   </tr>
+   <!-- Add rows here -->
+   </table>
+   </div>
+   \`\`\`
+
+Remember to:
+- Use centered layouts for key sections
+- Include plenty of whitespace for readability
+- Add hover effects using HTML/CSS where possible
+- Use consistent emoji sets for section headers
+- Create visual hierarchy with different heading sizes
+- Include quick-copy code blocks
+- Add "Back to Top" links for long sections
+- Use tables for structured information
+- Include progress bars for version status
+- Add keyboard shortcut tables if applicable
+
+Make the README visually impressive while maintaining professional documentation standards.`;
 
       const response = await fetch(this.apiEndpoint, {
         method: "POST",
@@ -362,7 +502,7 @@ Please generate a comprehensive README.md that makes the repository more accessi
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-r1-distill-llama-70b:free",
+          model: "google/gemini-2.0-pro-exp-02-05:free",
           messages: [
             {
               role: "system",
