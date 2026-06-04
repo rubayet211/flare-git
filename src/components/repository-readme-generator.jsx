@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RepositorySelector } from "@/components/repository-selector";
 import { Eye, Code, Copy, Download, CheckCircle2, Github } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -297,7 +297,7 @@ export function RepositoryReadmeGenerator() {
             Select a repository to get started
           </h3>
           <p className="text-sm text-muted-foreground">
-            We'll analyze your repository and generate an enhanced README.md
+            We&apos;ll analyze your repository and generate an enhanced README.md
             file
           </p>
         </Card>

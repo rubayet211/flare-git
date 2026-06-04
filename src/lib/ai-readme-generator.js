@@ -334,9 +334,10 @@ Key Principles:
 - Implement creative ASCII/Unicode art where appropriate
 - Balance visual appeal with professional documentation
 - Ensure mobile-friendly formatting
-- Use gradient text effects for key headings (using HTML when needed)
+- Use standard markdown. Avoid overly complex HTML.
 - Create visually distinct sections with clear separation
-- Use modern documentation patterns like collapsible sections and tabs`;
+- Use modern documentation patterns like collapsible sections and tabs
+- NEVER hallucinate features that are not in the repository details or file list.`;
 
       const userPrompt = `Create a stunning, modern README.md that serves as both documentation and a project landing page:
 
@@ -361,139 +362,34 @@ ${existingReadme || "No existing README"}
 Create a README with this modern structure:
 
 1. Header Section (Visually Striking)
-   - Large centered project name with custom font styling
-   - Animated badges row (build, version, license, stars, etc.)
+   - Large project name
+   - Badges row (build, version, license, stars, etc.)
    - Brief, impactful project description
-   - Quick links with custom icons
-   - Visual preview (screenshot/GIF) in a styled container
 
-2. Key Features (Visual Grid)
-   - Feature cards with icons
-   - Visual demonstrations
-   - Code preview snippets in styled containers
-   - Feature comparison table if applicable
+2. Key Features
+   - Bulleted list of main features based ONLY on what you can infer from the file list and description
 
 3. Quick Start (Developer-Friendly)
-   - One-line installation command in a styled box
-   - Basic usage example in a syntax-highlighted block
-   - Common commands in a styled table
-   - Environment setup in collapsible sections
+   - Guessed installation command in a code block based on language (e.g. npm install if package.json exists, pip install if requirements.txt exists)
+   - Basic usage example
 
 4. Documentation (Well-Structured)
-   - Clear navigation with jump links
-   - API documentation in modern table format
-   - Configuration options in collapsible sections
-   - Examples with copy-to-clipboard buttons
+   - File structure summary
 
-5. Project Architecture
-   - Visual architecture diagram
-   - Directory structure in a styled tree
-   - Component relationships diagram
-   - Tech stack badges in a grid
-
-6. Development Guide
-   - Prerequisites checklist
-   - Step-by-step setup guide
-   - Development workflow diagram
-   - Testing instructions in collapsible sections
-
-7. Community & Support
-   - Contribution workflow diagram
-   - Code of conduct summary
-   - Support channels with badges
-   - Contributors section with avatars
-
-8. Footer
-   - License badge and summary
-   - Author information with social links
-   - Project status badges
-   - "Made with ❤️" section
+5. License
+   - License section if license file is detected
 
 Styling Requirements:
-1. Use HTML for enhanced styling where appropriate:
-   \`\`\`html
-   <h1 align="center">
-     <img src="logo.png" alt="Logo" width="200px"><br>
-     Project Name
-   </h1>
-   <p align="center">
-     <a href="#"><img src="badge1.svg" alt="badge1"></a>
-     <a href="#"><img src="badge2.svg" alt="badge2"></a>
-   </p>
-   \`\`\`
-
-2. Create visually distinct sections:
-   \`\`\`html
-   <div align="center">
-   <table>
-   <tr>
-   <td width="50%">
-     <h3 align="center">Feature 1</h3>
-     <p align="center">
-       <img src="feature1.gif" alt="Feature 1" width="100%">
-     </p>
-   </td>
-   <td width="50%">
-     <h3 align="center">Feature 2</h3>
-     <p align="center">
-       <img src="feature2.gif" alt="Feature 2" width="100%">
-     </p>
-   </td>
-   </tr>
-   </table>
-   </div>
-   \`\`\`
-
-3. Use modern badges and shields:
-   - Dynamic GitHub stats badges
-   - Custom-styled shields.io badges
-   - Technology stack badges
-   - Status and version badges
-
-4. Implement collapsible sections:
-   \`\`\`html
-   <details>
-   <summary>📖 Detailed Documentation</summary>
-   
-   Content here...
-   </details>
-   \`\`\`
-
-5. Add styled code blocks:
-   \`\`\`html
-   <pre>
-   <code>
-   npm install your-package
-   </code>
-   </pre>
-   \`\`\`
-
-6. Create feature highlights:
-   \`\`\`html
-   <div align="center">
-   <table>
-   <tr>
-   <th>Feature</th>
-   <th>Description</th>
-   </tr>
-   <!-- Add rows here -->
-   </table>
-   </div>
-   \`\`\`
+1. Keep it clean and professional. 
+2. Use markdown headings (#, ##, ###) for structure.
+3. Use markdown code blocks for code snippets.
+4. Use standard markdown tables if tabular data is needed.
+5. Do not use overly complex nested HTML.
 
 Remember to:
-- Use centered layouts for key sections
+- Use markdown headings correctly
 - Include plenty of whitespace for readability
-- Add hover effects using HTML/CSS where possible
-- Use consistent emoji sets for section headers
-- Create visual hierarchy with different heading sizes
-- Include quick-copy code blocks
-- Add "Back to Top" links for long sections
-- Use tables for structured information
-- Include progress bars for version status
-- Add keyboard shortcut tables if applicable
-
-Make the README visually impressive while maintaining professional documentation standards.`;
+- DO NOT invent commands, features, or APIs that you cannot confirm exist based on the file list.`;
 
       const response = await fetch(this.apiEndpoint, {
         method: "POST",

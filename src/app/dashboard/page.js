@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -16,15 +16,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Github, Linkedin, Twitter, Globe, MapPin, User } from "lucide-react";
+import { Github, Linkedin, Twitter, Globe, MapPin, User, Loader2, AlertTriangle } from "lucide-react";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { ThemePreview } from "@/components/theme-preview";
-import { RepositoryList } from "@/components/repository-list";
-import { GitHubService } from "@/lib/github";
 import { GitHubAnalytics } from "@/components/github-analytics";
 import { ReadmeEditor } from "@/components/readme-editor";
-import { ReadmeGenerator } from "@/components/readme-generator";
 import { RepositoryReadmeGenerator } from "@/components/repository-readme-generator";
+import { getContrastRatio } from "@/lib/utils";
 
 const defaultTheme = {
   primary: "#3b82f6",
@@ -41,6 +39,7 @@ export default function Dashboard() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generatingBio, setGeneratingBio] = useState(false);
   const [theme, setTheme] = useState(defaultTheme);
   const [repositories, setRepositories] = useState([]);
   const [loadingRepos, setLoadingRepos] = useState(false);
@@ -51,6 +50,8 @@ export default function Dashboard() {
     website: "",
     twitter: "",
     linkedin: "",
+    specialization: "",
+    aiGeneratedBio: "",
   });
 
   useEffect(() => {
@@ -79,6 +80,8 @@ export default function Dashboard() {
         website: profile.website || "",
         twitter: profile.twitter || "",
         linkedin: profile.linkedin || "",
+        specialization: profile.specialization || "",
+        aiGeneratedBio: profile.aiGeneratedBio || "",
       });
       setTheme(profile.customTheme || defaultTheme);
     }
@@ -108,7 +111,8 @@ export default function Dashboard() {
         `/api/github/repositories/${profile.githubUsername}`
       );
       if (!response.ok) {
-        throw new Error("Failed to fetch repositories");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to fetch repositories");
       }
       const data = await response.json();
       setRepositories(Array.isArray(data) ? data : []);
@@ -116,7 +120,7 @@ export default function Dashboard() {
       console.error("Error fetching repositories:", error);
       toast({
         title: "Error",
-        description: "Failed to load repositories",
+        description: error.message || "Failed to load repositories",
         variant: "destructive",
       });
       setRepositories([]);
@@ -131,6 +135,40 @@ export default function Dashboard() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleGenerateBio = async () => {
+    setGeneratingBio(true);
+    try {
+      const response = await fetch("/api/ai/generate-bio", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to generate professional bio");
+      }
+      const data = await response.json();
+      setFormData((prev) => ({
+        ...prev,
+        aiGeneratedBio: data.bio,
+      }));
+      toast({
+        title: "Success",
+        description: "AI successfully generated your professional bio. Click 'Save Changes' to update.",
+      });
+    } catch (error) {
+      console.error("Error generating bio:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate bio with AI",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingBio(false);
+    }
   };
 
   const handleThemeChange = (key, value) => {
@@ -184,6 +222,30 @@ export default function Dashboard() {
   const handleSubmit = async () => {
     setSaving(true);
     try {
+      // Enforce contrast guardrails
+      const textContrast = getContrastRatio(theme.text, theme.background);
+      const headingContrast = getContrastRatio(theme.heading, theme.background);
+
+      if (textContrast < 2.5) {
+        toast({
+          title: "Contrast Warning",
+          description: `The contrast ratio between your Text Color and Background Color is too low (${textContrast.toFixed(2)}:1). A minimum of 2.5:1 is required to ensure readability.`,
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+
+      if (headingContrast < 2.5) {
+        toast({
+          title: "Contrast Warning",
+          description: `The contrast ratio between your Heading Color and Background Color is too low (${headingContrast.toFixed(2)}:1). A minimum of 2.5:1 is required to ensure readability.`,
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+
       const response = await fetch(`/api/profile/${session.user.id}`, {
         method: "PUT",
         headers: {
@@ -192,11 +254,14 @@ export default function Dashboard() {
         body: JSON.stringify({
           ...formData,
           customTheme: theme,
+          featuredProjects: profile?.featuredProjects || [],
+          generatedReadme: profile?.generatedReadme || "",
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update profile");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to update profile");
       }
 
       const updatedProfile = await response.json();
@@ -209,7 +274,7 @@ export default function Dashboard() {
       console.error("Error updating profile:", error);
       toast({
         title: "Error",
-        description: "Failed to update profile",
+        description: error.message || "Failed to update profile",
         variant: "destructive",
       });
     } finally {
@@ -237,8 +302,10 @@ export default function Dashboard() {
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="repositories">Repositories</TabsTrigger>
+          <TabsTrigger value="profileReadme">Profile README</TabsTrigger>
+          <TabsTrigger value="featuredProjects">Featured Projects</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="settings">Theme Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">
@@ -354,6 +421,49 @@ export default function Dashboard() {
                   </p>
                 </div>
 
+                <div className="space-y-2 mb-4">
+                  <Label htmlFor="specialization">Specialization / Title</Label>
+                  <Input
+                    id="specialization"
+                    name="specialization"
+                    placeholder="e.g. Full Stack Developer, Next.js Architect"
+                    value={formData.specialization || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="aiGeneratedBio">Professional Bio</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGenerateBio}
+                      disabled={generatingBio || saving}
+                    >
+                      {generatingBio ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        "Generate with AI"
+                      )}
+                    </Button>
+                  </div>
+                  <textarea
+                    id="aiGeneratedBio"
+                    name="aiGeneratedBio"
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    rows={4}
+                    placeholder="Your professional bio will appear here. You can edit it or generate one with AI."
+                    value={formData.aiGeneratedBio || ""}
+                    onChange={handleInputChange}
+                    disabled={generatingBio || saving}
+                  />
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="twitter">
@@ -421,6 +531,72 @@ export default function Dashboard() {
           <RepositoryReadmeGenerator />
         </TabsContent>
 
+        <TabsContent value="profileReadme">
+          <ReadmeEditor profile={profile} />
+        </TabsContent>
+
+        <TabsContent value="featuredProjects">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Featured Projects</CardTitle>
+                <CardDescription>
+                  Select repositories to highlight on your public portfolio.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      placeholder="Search repositories..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                  {loadingRepos ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-16 w-full" />
+                    </div>
+                  ) : filteredRepositories.length === 0 ? (
+                    <div className="py-8 text-center text-muted-foreground">
+                      No repositories found.
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredRepositories.map((repo) => {
+                        const isFeatured = (profile?.featuredProjects || []).some((p) => p.id === repo.id);
+                        return (
+                          <Card key={repo.id} className={isFeatured ? "border-primary" : ""}>
+                            <CardHeader className="p-4">
+                              <CardTitle className="text-base truncate">{repo.name}</CardTitle>
+                              <CardDescription className="line-clamp-2 h-10 text-xs">
+                                {repo.description || "No description"}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-4 pt-0">
+                              <Button
+                                variant={isFeatured ? "outline" : "default"}
+                                className="w-full"
+                                size="sm"
+                                onClick={() => handleToggleFeature(repo)}
+                              >
+                                {isFeatured ? "Remove from Featured" : "Add to Featured"}
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="analytics" className="space-y-4">
           <Card>
             <CardHeader>
@@ -440,55 +616,95 @@ export default function Dashboard() {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Theme Customization</CardTitle>
-                <CardDescription>
-                  Customize your profile's appearance
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ColorPicker
-                  label="Primary Color"
-                  color={theme.primary}
-                  onChange={(color) => handleThemeChange("primary", color)}
-                />
-                <ColorPicker
-                  label="Background Color"
-                  color={theme.background}
-                  onChange={(color) => handleThemeChange("background", color)}
-                />
-                <ColorPicker
-                  label="Card Color"
-                  color={theme.card}
-                  onChange={(color) => handleThemeChange("card", color)}
-                />
-                <ColorPicker
-                  label="Text Color"
-                  color={theme.text}
-                  onChange={(color) => handleThemeChange("text", color)}
-                />
-                <ColorPicker
-                  label="Heading Color"
-                  color={theme.heading}
-                  onChange={(color) => handleThemeChange("heading", color)}
-                />
-                <Button
-                  className="mt-4 w-full"
-                  onClick={handleSubmit}
-                  disabled={saving}
-                >
-                  {saving ? "Saving..." : "Save Theme"}
-                </Button>
-              </CardContent>
-            </Card>
+          {(() => {
+            const textContrast = getContrastRatio(theme.text, theme.background);
+            const headingContrast = getContrastRatio(theme.heading, theme.background);
+            const isTextContrastLow = textContrast < 4.5;
+            const isHeadingContrastLow = headingContrast < 4.5;
+            const isTextContrastDanger = textContrast < 2.5;
+            const isHeadingContrastDanger = headingContrast < 2.5;
 
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Preview</h3>
-              <ThemePreview theme={theme} profile={profile} />
-            </div>
-          </div>
+            return (
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Theme Customization</CardTitle>
+                    <CardDescription>
+                      Customize your profile&apos;s appearance
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <ColorPicker
+                      label="Primary Color"
+                      color={theme.primary}
+                      onChange={(color) => handleThemeChange("primary", color)}
+                    />
+                    <ColorPicker
+                      label="Background Color"
+                      color={theme.background}
+                      onChange={(color) => handleThemeChange("background", color)}
+                    />
+                    <ColorPicker
+                      label="Card Color"
+                      color={theme.card}
+                      onChange={(color) => handleThemeChange("card", color)}
+                    />
+                    <ColorPicker
+                      label="Text Color"
+                      color={theme.text}
+                      onChange={(color) => handleThemeChange("text", color)}
+                    />
+                    <ColorPicker
+                      label="Heading Color"
+                      color={theme.heading}
+                      onChange={(color) => handleThemeChange("heading", color)}
+                    />
+
+                    {/* Inline contrast ratio indicators */}
+                    {(isTextContrastLow || isHeadingContrastLow) && (
+                      <div className={`rounded-md p-3 border text-xs flex items-start gap-2 ${
+                        isTextContrastDanger || isHeadingContrastDanger
+                          ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50 text-red-800 dark:text-red-400"
+                          : "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900/50 text-yellow-800 dark:text-yellow-400"
+                      }`}>
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold">
+                            {isTextContrastDanger || isHeadingContrastDanger
+                              ? "Danger: Low contrast (will block saving)"
+                              : "Accessibility Warning: Low contrast"}
+                          </p>
+                          {isTextContrastLow && (
+                            <p>
+                              - Text vs Background contrast is {textContrast.toFixed(2)}:1. (Recommended &gt;= 4.5:1, Min 2.5:1).
+                            </p>
+                          )}
+                          {isHeadingContrastLow && (
+                            <p>
+                              - Heading vs Background contrast is {headingContrast.toFixed(2)}:1. (Recommended &gt;= 4.5:1, Min 2.5:1).
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <Button
+                      className="mt-4 w-full"
+                      onClick={handleSubmit}
+                      disabled={saving}
+                    >
+                      {saving ? "Saving..." : "Save Theme"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Preview</h3>
+                  <ThemePreview theme={theme} profile={profile} />
+                </div>
+              </div>
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </div>

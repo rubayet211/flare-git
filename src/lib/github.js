@@ -32,13 +32,13 @@ export class GitHubService {
         visibility: repo.visibility,
       }));
     } catch (error) {
-      console.error("Error fetching repositories:", error);
       if (error.status === 401) {
         throw new Error("GitHub authentication failed");
       }
       if (error.status === 404) {
         return []; // Return empty array if user not found
       }
+      console.error("Error fetching repositories:", error);
       throw error;
     }
   }

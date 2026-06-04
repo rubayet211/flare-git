@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getGitHubAccessToken } from "@/lib/auth";
 import { GitHubProfileAnalyzer } from "@/lib/github-profile-analyzer";
 import { AIReadmeGenerator } from "@/lib/ai-readme-generator";
 import { prisma } from "@/lib/prisma";
@@ -48,16 +48,17 @@ export async function POST(req) {
     }
 
     // Check if we have a valid GitHub access token
-    if (!session.accessToken) {
+    const accessToken = await getGitHubAccessToken(session.user.id);
+    if (!accessToken) {
       return new Response(
-        JSON.stringify({ error: "GitHub access token not found" }),
+        JSON.stringify({ error: "GitHub access token not found. Please log in again." }),
         { status: 401 }
       );
     }
 
     try {
       // Initialize the GitHub profile analyzer with the access token
-      const analyzer = new GitHubProfileAnalyzer(session.accessToken);
+      const analyzer = new GitHubProfileAnalyzer(accessToken);
 
       // Collect GitHub data
       const githubData = await analyzer.collectProfileData(

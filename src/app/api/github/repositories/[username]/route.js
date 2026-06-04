@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getGitHubAccessToken } from "@/lib/auth";
 import { GitHubService } from "@/lib/github";
 
 export async function GET(request, { params }) {
@@ -13,13 +13,14 @@ export async function GET(request, { params }) {
     }
 
     const { username } = params;
-
-    // Get the GitHub access token from the user's session
-    const accessToken = session.accessToken;
+    const accessToken = await getGitHubAccessToken(session.user.id);
 
     if (!accessToken) {
-      return new NextResponse(
-        JSON.stringify({ error: "GitHub token not found" }),
+      return NextResponse.json(
+        {
+          error: "GitHub authorization is missing. Sign in with GitHub again.",
+          code: "GITHUB_AUTH_REQUIRED",
+        },
         { status: 401 }
       );
     }
@@ -29,6 +30,16 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(repositories);
   } catch (error) {
+    if (error.message === "GitHub authentication failed") {
+      return NextResponse.json(
+        {
+          error: "GitHub authorization expired. Sign in with GitHub again.",
+          code: "GITHUB_AUTH_EXPIRED",
+        },
+        { status: 401 }
+      );
+    }
+
     console.error("Error fetching repositories:", error);
     return new NextResponse(
       JSON.stringify({

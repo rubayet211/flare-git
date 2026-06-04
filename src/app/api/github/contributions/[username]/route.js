@@ -1,22 +1,23 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { authOptions, getGitHubAccessToken } from "@/lib/auth";
 import { GitHubService } from "@/lib/github";
 
 export async function GET(request, { params }) {
   try {
-    const session = await getServerSession();
-    if (!session) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
       });
     }
 
     const { username } = params;
-    const accessToken = session.accessToken;
+    const accessToken = await getGitHubAccessToken(session.user.id);
 
     if (!accessToken) {
       return new NextResponse(
-        JSON.stringify({ error: "GitHub token not found" }),
+        JSON.stringify({ error: "GitHub access token not found. Please log in again." }),
         { status: 401 }
       );
     }
@@ -26,9 +27,9 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(contributions);
   } catch (error) {
-    console.error("Error fetching contributions:", error);
+    console.error("Error fetching contributions in API route:", error);
     return new NextResponse(
-      JSON.stringify({ error: "Internal Server Error" }),
+      JSON.stringify({ error: "Failed to fetch contribution data from GitHub" }),
       { status: 500 }
     );
   }
