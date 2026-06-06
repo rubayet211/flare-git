@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { ProfileReadmePreview } from "@/components/profile-readme-preview";
 import { Github, Twitter, Linkedin, Globe, Star, GitFork } from "lucide-react";
 
 const defaultTheme = {
@@ -223,26 +222,10 @@ export default function ProfilePage({ params }) {
               About
             </h2>
             <Card className="p-8 overflow-hidden" style={{ backgroundColor: theme.card, color: theme.text }}>
-              <div className="markdown-body custom-prose max-w-none prose dark:prose-invert">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {profile.generatedReadme}
-                </ReactMarkdown>
-              </div>
-              <style jsx>{`
-                .custom-prose h1, .custom-prose h2, .custom-prose h3 {
-                  color: ${theme.heading};
-                  margin-top: 1.5em;
-                  margin-bottom: 0.5em;
-                  font-weight: 600;
-                }
-                .custom-prose h1 { font-size: 2em; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.3em; }
-                .custom-prose h2 { font-size: 1.5em; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.3em; }
-                .custom-prose h3 { font-size: 1.25em; }
-                .custom-prose img { max-width: 100%; border-radius: 8px; margin: 1em 0; }
-                .custom-prose pre { background: rgba(0,0,0,0.05); padding: 1em; border-radius: 8px; overflow-x: auto; }
-                .custom-prose code { background: rgba(0,0,0,0.05); padding: 0.2em 0.4em; border-radius: 4px; }
-                .custom-prose a { color: ${theme.primary}; }
-              `}</style>
+              <ProfileReadmePreview
+                content={profile.generatedReadme}
+                theme={theme}
+              />
             </Card>
           </div>
         )}

@@ -6,8 +6,25 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, Code, Copy, Download, CheckCircle2, Github, Loader2, Sparkles, Save } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { ProfileReadmePreview } from "@/components/profile-readme-preview";
+
+const GENERATION_STYLES = [
+  {
+    id: "professional",
+    label: "Professional",
+    description: "Polished and recruiter-friendly",
+  },
+  {
+    id: "bold",
+    label: "Bold",
+    description: "Expressive, visual, and energetic",
+  },
+  {
+    id: "minimal",
+    label: "Minimal",
+    description: "Concise, focused, and clean",
+  },
+];
 
 const DEFAULT_README = `# Hi there 👋
 
@@ -28,24 +45,28 @@ I'm a passionate developer who loves to code and build things.
 - Website: [portfolio.com](https://portfolio.com)
 `;
 
-export function ReadmeEditor({ profile }) {
+export function ReadmeEditor({ profile, onSaved }) {
   const { data: session } = useSession();
   const [content, setContent] = useState(DEFAULT_README);
   const [isPreview, setIsPreview] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStyle, setGenerationStyle] = useState("professional");
+  const [hasUnsavedDraft, setHasUnsavedDraft] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (profile?.generatedReadme) {
       setContent(profile.generatedReadme);
+      setHasUnsavedDraft(false);
     } else if (profile?.githubUsername) {
       setContent(
         DEFAULT_README
           .replace(/\[@username\]/g, `[@${profile.githubUsername}]`)
           .replace(/username=/g, `username=${profile.githubUsername}`)
       );
+      setHasUnsavedDraft(false);
     }
   }, [profile]);
 
@@ -115,10 +136,13 @@ export function ReadmeEditor({ profile }) {
         throw new Error("Failed to save README");
       }
 
+      const updatedProfile = await response.json();
+      onSaved?.(updatedProfile);
       toast({
         title: "Saved!",
         description: "Profile README saved to database",
       });
+      setHasUnsavedDraft(false);
     } catch (error) {
       console.error("Error saving profile README:", error);
       toast({
@@ -140,44 +164,34 @@ export function ReadmeEditor({ profile }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          preferences: {
-            style: "modern",
-            layout: "professional",
-            sections: [
-              "header",
-              "about",
-              "skills",
-              "statistics",
-              "projects",
-              "contributions",
-              "contact",
-            ],
-            theme: "radical",
-            features: {
-              animations: true,
-              dynamicStats: true,
-              skillBadges: true,
-              profileViews: true,
-            },
-          },
+          existingReadme: content,
+          preferences: { style: generationStyle },
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to generate README");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.details ||
+            errorData.error ||
+            "Failed to improve Profile README"
+        );
       }
 
       const data = await response.json();
       setContent(data.readme);
+      setIsPreview(true);
+      setHasUnsavedDraft(true);
       toast({
-        title: "Generated!",
-        description: "AI successfully generated your profile README",
+        title: "Draft improved",
+        description:
+          "Review the AI-refined README, then save it when you are ready.",
       });
     } catch (error) {
       console.error("Error generating README:", error);
       toast({
         title: "Error",
-        description: "Failed to generate README with AI",
+        description: error.message || "Failed to improve Profile README",
         variant: "destructive",
       });
     } finally {
@@ -187,6 +201,44 @@ export function ReadmeEditor({ profile }) {
 
   return (
     <div className="space-y-4">
+      <Card className="p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="font-semibold">AI refinement style</h2>
+            <p className="text-sm text-muted-foreground">
+              AI improves your current README and keeps verified profile details
+              accurate.
+            </p>
+          </div>
+          <div
+            className="grid gap-2 sm:grid-cols-3"
+            role="group"
+            aria-label="Profile README generation style"
+          >
+            {GENERATION_STYLES.map((style) => (
+              <Button
+                key={style.id}
+                type="button"
+                variant={generationStyle === style.id ? "default" : "outline"}
+                className="h-auto justify-start whitespace-normal px-3 py-2 text-left"
+                onClick={() => setGenerationStyle(style.id)}
+                disabled={isGenerating}
+                aria-pressed={generationStyle === style.id}
+              >
+                <span>
+                  <span className="block text-xs font-semibold">
+                    {style.label}
+                  </span>
+                  <span className="block text-[11px] font-normal opacity-75">
+                    {style.description}
+                  </span>
+                </span>
+              </Button>
+            ))}
+          </div>
+        </div>
+      </Card>
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Button
@@ -221,7 +273,7 @@ export function ReadmeEditor({ profile }) {
             ) : (
               <Sparkles className="mr-2 h-4 w-4" />
             )}
-            {isGenerating ? "Generating..." : "Generate with AI"}
+            {isGenerating ? "Improving..." : "Improve with AI"}
           </Button>
           <Button
             size="sm"
@@ -235,6 +287,11 @@ export function ReadmeEditor({ profile }) {
             )}
             Save README
           </Button>
+          {hasUnsavedDraft && (
+            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+              Unsaved changes
+            </span>
+          )}
           <Button variant="outline" size="sm" onClick={handleCopy} disabled={isGenerating}>
             {isCopied ? (
               <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
@@ -265,15 +322,14 @@ export function ReadmeEditor({ profile }) {
       ) : (
         <Card className="relative min-h-[500px] w-full overflow-hidden border bg-card">
           {isPreview ? (
-            <div className="prose prose-sm max-w-none p-6 dark:prose-invert">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {content}
-              </ReactMarkdown>
-            </div>
+            <ProfileReadmePreview content={content} className="min-h-[500px] p-6" />
           ) : (
             <textarea
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => {
+                setContent(e.target.value);
+                setHasUnsavedDraft(true);
+              }}
               className="min-h-[500px] w-full resize-none bg-transparent p-6 font-mono text-sm focus:outline-none"
               spellCheck="false"
             />
@@ -286,7 +342,7 @@ export function ReadmeEditor({ profile }) {
           Tips for a great GitHub Profile README:
         </h3>
         <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
-          <li>Use the **Generate with AI** button to bootstrap a stats-rich portfolio dashboard.</li>
+          <li>Use Improve with AI to refine your current content without discarding your voice.</li>
           <li>Click **Save README** to update the about section of your public FlareGit profile.</li>
           <li>Include key skills, links, badges, and project callouts.</li>
           <li>Make manual adjustments in the editor to make it truly personal before copying it to your GitHub profile repo.</li>

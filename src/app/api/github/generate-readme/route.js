@@ -22,7 +22,7 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { preferences } = body;
+    const { preferences = {}, existingReadme = "" } = body;
 
     // Get the user's profile from the database
     const profile = await prisma.profile.findUnique({
@@ -69,12 +69,17 @@ export async function POST(req) {
       const combinedProfileData = {
         github: githubData,
         flaregit: {
+          githubUsername: profile.githubUsername,
           customUrl: profile.customUrl,
+          bio: profile.bio,
+          aiGeneratedBio: profile.aiGeneratedBio,
+          specialization: profile.specialization,
           location: profile.location,
           website: profile.website,
           twitter: profile.twitter,
           linkedin: profile.linkedin,
           theme: profile.customTheme,
+          featuredProjects: profile.featuredProjects,
         },
         user: {
           name: profile.user.name,
@@ -92,21 +97,13 @@ export async function POST(req) {
       // Generate the README
       const readme = await generator.generateReadme(
         combinedProfileData,
-        preferences
+        preferences,
+        existingReadme
       );
 
       if (!readme) {
         throw new Error("No README content was generated");
       }
-
-      // Save the generated README to the profile
-      await prisma.profile.update({
-        where: { userId: session.user.id },
-        data: {
-          generatedReadme: readme,
-          lastReadmeUpdate: new Date(),
-        },
-      });
 
       return new Response(JSON.stringify({ readme }), {
         status: 200,

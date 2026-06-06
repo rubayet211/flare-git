@@ -532,7 +532,7 @@ export default function Dashboard() {
         </TabsContent>
 
         <TabsContent value="profileReadme">
-          <ReadmeEditor profile={profile} />
+          <ReadmeEditor profile={profile} onSaved={setProfile} />
         </TabsContent>
 
         <TabsContent value="featuredProjects">
