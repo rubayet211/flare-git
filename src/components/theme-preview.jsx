@@ -24,7 +24,7 @@ export function ThemePreview({ theme, profile }) {
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gray-100">
+            <div className="flex h-full w-full items-center justify-center bg-muted">
               <Github className="h-7 w-7" style={{ color: theme.primary }} />
             </div>
           )}

@@ -349,7 +349,7 @@ export function ReadmeGenerator() {
                   }
 
                   .readme-preview a {
-                    color: #58a6ff;
+                    color: hsl(var(--primary));
                     text-decoration: none;
                   }
 
@@ -440,7 +440,7 @@ export function ReadmeGenerator() {
                   }
 
                   :root[class~="dark"] .readme-preview a {
-                    color: #58a6ff;
+                    color: hsl(var(--primary));
                   }
 
                   :root[class~="dark"] .readme-preview code {

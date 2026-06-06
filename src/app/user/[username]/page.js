@@ -44,9 +44,9 @@ export default function ProfilePage({ params }) {
     return (
       <div className="container mx-auto py-10">
         <div className="animate-pulse space-y-4">
-          <div className="h-20 w-20 rounded-full bg-gray-200" />
-          <div className="h-8 w-48 rounded bg-gray-200" />
-          <div className="h-4 w-64 rounded bg-gray-200" />
+          <div className="h-20 w-20 rounded-full bg-muted" />
+          <div className="h-8 w-48 rounded bg-muted" />
+          <div className="h-4 w-64 rounded bg-muted" />
         </div>
       </div>
     );
@@ -77,7 +77,7 @@ export default function ProfilePage({ params }) {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                <div className="flex h-full w-full items-center justify-center bg-muted">
                   <Github
                     className="h-10 w-10"
                     style={{ color: theme.primary }}
@@ -203,8 +203,8 @@ export default function ProfilePage({ params }) {
                     <p className="opacity-90 mb-4">{project.description || "No description provided."}</p>
                   </div>
                   {project.language && (
-                    <div className="mt-4 pt-4 border-t border-opacity-10">
-                      <span className="text-sm font-medium px-2 py-1 rounded bg-opacity-10" style={{ backgroundColor: theme.primary, color: theme.primary }}>
+                    <div className="mt-4 pt-4 border-t" style={{ borderColor: `${theme.text}1A` }}>
+                      <span className="text-sm font-medium px-2 py-1 rounded" style={{ backgroundColor: `${theme.primary}1A`, color: theme.primary }}>
                         {project.language}
                       </span>
                     </div>
