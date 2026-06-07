@@ -1,5 +1,6 @@
 import { normalizeGitHubOwner } from "./github-url.mjs";
 import { withGitHubApiVersion } from "./github-api-version.mjs";
+import { normalizeProfileReadme } from "./profile-readme-content.mjs";
 
 const README_PATH = "README.md";
 
@@ -16,6 +17,10 @@ export async function publishProfileReadme({ octokit, username, content }) {
   if (!owner) {
     throw new Error("GitHub username is required");
   }
+  const normalizedContent = normalizeProfileReadme(content);
+  if (!normalizedContent) {
+    throw new Error("README content is required");
+  }
 
   await ensureRepositoryExists({ octokit, owner, repo });
 
@@ -23,7 +28,7 @@ export async function publishProfileReadme({ octokit, username, content }) {
     octokit,
     owner,
     repo,
-    content,
+    content: normalizedContent,
     message: "Update profile README via FlareGit",
   });
 }
@@ -72,7 +77,18 @@ export async function publishRepositoryReadme({
 
 async function ensureRepositoryExists({ octokit, owner, repo }) {
   try {
-    await octokit.rest.repos.get(withGitHubApiVersion({ owner, repo }));
+    const { data } = await octokit.rest.repos.get(
+      withGitHubApiVersion({ owner, repo })
+    );
+    if (data?.private) {
+      await octokit.rest.repos.update(
+        withGitHubApiVersion({
+          owner,
+          repo,
+          private: false,
+        })
+      );
+    }
   } catch (error) {
     if (error.status !== 404) {
       throw error;
@@ -82,7 +98,7 @@ async function ensureRepositoryExists({ octokit, owner, repo }) {
       withGitHubApiVersion({
         name: repo,
         private: false,
-        auto_init: false,
+        auto_init: true,
         description: `GitHub profile README for ${owner}`,
       })
     );

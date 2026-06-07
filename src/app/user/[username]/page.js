@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 import { Card } from "@/components/ui/card";
 import { ProfileReadmePreview } from "@/components/profile-readme-preview";
 import {
@@ -12,19 +13,20 @@ import {
   GitFork,
   BookOpen,
 } from "lucide-react";
-import { getGitHubRepositoryUrl } from "@/lib/github-url.mjs";
-
-const defaultTheme = {
-  primary: "#3b82f6",
-  background: "#ffffff",
-  card: "#f8fafc",
-  text: "#1e293b",
-  heading: "#0f172a",
-};
+import {
+  buildGitHubProfileUrl,
+  getGitHubRepositoryUrl,
+} from "@/lib/github-url.mjs";
 
 export default function ProfilePage({ params }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -71,7 +73,16 @@ export default function ProfilePage({ params }) {
     );
   }
 
-  const theme = profile?.customTheme || defaultTheme;
+  // Use the profile's primary accent color if set, otherwise fall back to the CSS variable
+  const accentColor = profile?.customTheme?.primary || null;
+  const accentStyle = accentColor ? { color: accentColor } : {};
+  const accentBorderStyle = accentColor ? { borderColor: accentColor } : {};
+  const accentBgStyle = accentColor
+    ? { backgroundColor: `${accentColor}1A`, color: accentColor }
+    : {};
+
+  const isDark = mounted && resolvedTheme === "dark";
+
   const portfolio = profile?.portfolio || {};
   const portfolioProjects =
     Array.isArray(portfolio.projects) && portfolio.projects.length > 0
@@ -82,21 +93,18 @@ export default function ProfilePage({ params }) {
     ? portfolio.languages
     : [];
 
+  const githubProfileUrl = buildGitHubProfileUrl(profile?.githubUsername);
+  const primaryLanguage = languages[0]?.name || "Not enough language data";
+
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        backgroundColor: theme.background,
-        color: theme.text,
-      }}
-    >
+    <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto py-10">
         {/* Header */}
         <div className="mb-10 flex items-start justify-between">
           <div className="flex items-center space-x-4">
             <div
-              className="h-24 w-24 overflow-hidden rounded-full border-4"
-              style={{ borderColor: theme.primary }}
+              className="h-24 w-24 overflow-hidden rounded-full border-4 border-primary"
+              style={accentBorderStyle}
             >
               {profile?.image ? (
                 <img
@@ -107,22 +115,19 @@ export default function ProfilePage({ params }) {
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-muted">
                   <Github
-                    className="h-10 w-10"
-                    style={{ color: theme.primary }}
+                    className="h-10 w-10 text-primary"
+                    style={accentStyle}
                   />
                 </div>
               )}
             </div>
             <div>
-              <h1
-                className="text-3xl font-bold"
-                style={{ color: theme.heading }}
-              >
+              <h1 className="text-3xl font-bold text-foreground">
                 {profile?.name}
               </h1>
-              <p className="text-lg opacity-80">@{profile?.githubUsername}</p>
+              <p className="text-lg text-muted-foreground">@{profile?.githubUsername}</p>
               {profile?.company && (
-                <p className="mt-1 flex items-center text-sm opacity-80">
+                <p className="mt-1 flex items-center text-sm text-muted-foreground">
                   <Github className="mr-1 h-4 w-4" />
                   {profile.company}
                 </p>
@@ -135,9 +140,9 @@ export default function ProfilePage({ params }) {
         {(profile?.aiGeneratedBio || profile?.bio) && (
           <div className="mb-8 max-w-3xl">
             {profile?.specialization && (
-              <h2 className="text-xl font-medium mb-2 opacity-90">{profile.specialization}</h2>
+              <h2 className="text-xl font-medium mb-2 text-muted-foreground">{profile.specialization}</h2>
             )}
-            <p className="text-lg leading-relaxed" style={{ color: theme.text }}>
+            <p className="text-lg leading-relaxed text-foreground">
               {profile.aiGeneratedBio || profile.bio}
             </p>
           </div>
@@ -150,8 +155,8 @@ export default function ProfilePage({ params }) {
               href={`https://twitter.com/${profile.twitter}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:opacity-80"
-              style={{ color: theme.primary }}
+              className="text-primary hover:opacity-80"
+              style={accentStyle}
             >
               <Twitter className="h-6 w-6" />
             </a>
@@ -161,8 +166,8 @@ export default function ProfilePage({ params }) {
               href={profile.linkedin}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:opacity-80"
-              style={{ color: theme.primary }}
+              className="text-primary hover:opacity-80"
+              style={accentStyle}
             >
               <Linkedin className="h-6 w-6" />
             </a>
@@ -172,8 +177,8 @@ export default function ProfilePage({ params }) {
               href={profile.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:opacity-80"
-              style={{ color: theme.primary }}
+              className="text-primary hover:opacity-80"
+              style={accentStyle}
             >
               <Globe className="h-6 w-6" />
             </a>
@@ -182,69 +187,94 @@ export default function ProfilePage({ params }) {
 
         {/* Stats */}
         <div className="mb-12 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card
-            className="p-6"
-            style={{ backgroundColor: theme.card, color: theme.text }}
-          >
+          <Card className="p-6">
             <div className="flex items-center gap-3">
-              <BookOpen className="h-5 w-5" style={{ color: theme.primary }} />
+              <BookOpen className="h-5 w-5 text-primary" style={accentStyle} />
               <div>
-                <p className="text-sm opacity-75">Repositories</p>
-                <p
-                  className="text-2xl font-semibold"
-                  style={{ color: theme.heading }}
-                >
+                <p className="text-sm text-muted-foreground">Repositories</p>
+                <p className="text-2xl font-semibold text-foreground">
                   {portfolioStats.totalRepos || portfolioProjects.length || 0}
                 </p>
               </div>
             </div>
           </Card>
-          <Card
-            className="p-6"
-            style={{ backgroundColor: theme.card, color: theme.text }}
-          >
+          <Card className="p-6">
             <div className="flex items-center gap-3">
-              <Star className="h-5 w-5" style={{ color: theme.primary }} />
+              <Star className="h-5 w-5 text-primary" style={accentStyle} />
               <div>
-                <p className="text-sm opacity-75">Stars</p>
-                <p
-                  className="text-2xl font-semibold"
-                  style={{ color: theme.heading }}
-                >
+                <p className="text-sm text-muted-foreground">Stars</p>
+                <p className="text-2xl font-semibold text-foreground">
                   {portfolioStats.totalStars || 0}
                 </p>
               </div>
             </div>
           </Card>
-          <Card
-            className="p-6"
-            style={{ backgroundColor: theme.card, color: theme.text }}
-          >
+          <Card className="p-6">
             <div className="flex items-center gap-3">
-              <GitFork className="h-5 w-5" style={{ color: theme.primary }} />
+              <GitFork className="h-5 w-5 text-primary" style={accentStyle} />
               <div>
-                <p className="text-sm opacity-75">Forks</p>
-                <p
-                  className="text-2xl font-semibold"
-                  style={{ color: theme.heading }}
-                >
+                <p className="text-sm text-muted-foreground">Forks</p>
+                <p className="text-2xl font-semibold text-foreground">
                   {portfolioStats.totalForks || 0}
                 </p>
               </div>
             </div>
           </Card>
           {profile?.githubUsername && (
-            <Card
-              className="p-6 col-span-full overflow-hidden"
-              style={{ backgroundColor: theme.card, color: theme.text }}
-            >
-              <h3 className="font-semibold mb-4" style={{ color: theme.heading }}>GitHub Activity</h3>
-              <div className="flex justify-center">
-                <img 
-                  src={`https://github-readme-stats.vercel.app/api?username=${profile.githubUsername}&show_icons=true&theme=transparent&hide_border=true&title_color=${theme.primary.replace('#', '')}&text_color=${theme.text.replace('#', '')}&icon_color=${theme.primary.replace('#', '')}`}
-                  alt="GitHub Stats" 
-                  className="max-w-full h-auto"
-                />
+            <Card className="col-span-full p-6">
+              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-start gap-3">
+                  <Github
+                    className="mt-1 h-5 w-5 text-primary"
+                    style={accentStyle}
+                  />
+                  <div>
+                    <h3 className="font-semibold text-foreground">
+                      GitHub Activity
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Public repository activity for @{profile.githubUsername}
+                    </p>
+                  </div>
+                </div>
+                {githubProfileUrl && (
+                  <a
+                    href={githubProfileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                    style={accentStyle}
+                  >
+                    <Github className="h-4 w-4" />
+                    View GitHub profile
+                  </a>
+                )}
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Repositories</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {portfolioStats.totalRepos || portfolioProjects.length || 0}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Stars</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {portfolioStats.totalStars || 0}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Forks</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {portfolioStats.totalForks || 0}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Top language</p>
+                  <p className="truncate text-lg font-semibold text-foreground">
+                    {primaryLanguage}
+                  </p>
+                </div>
               </div>
             </Card>
           )}
@@ -252,7 +282,7 @@ export default function ProfilePage({ params }) {
 
         {languages.length > 0 && (
           <div className="mb-12 space-y-4">
-            <h2 className="text-2xl font-bold" style={{ color: theme.heading }}>
+            <h2 className="text-2xl font-bold text-foreground">
               Languages
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -260,24 +290,17 @@ export default function ProfilePage({ params }) {
                 <Card
                   key={language.name}
                   className="p-4"
-                  style={{ backgroundColor: theme.card, color: theme.text }}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-medium">{language.name}</span>
-                    <span className="text-sm opacity-75">
+                    <span className="text-sm text-muted-foreground">
                       {language.percentage}%
                     </span>
                   </div>
-                  <div
-                    className="mt-3 h-2 overflow-hidden rounded-full"
-                    style={{ backgroundColor: `${theme.text}1A` }}
-                  >
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${language.percentage}%`,
-                        backgroundColor: theme.primary,
-                      }}
+                      className="h-full rounded-full bg-primary"
+                      style={accentColor ? { backgroundColor: accentColor } : {}}
                     />
                   </div>
                 </Card>
@@ -289,7 +312,7 @@ export default function ProfilePage({ params }) {
         {/* Projects Section */}
         {portfolioProjects.length > 0 && (
           <div className="space-y-6 mb-12">
-            <h2 className="text-2xl font-bold" style={{ color: theme.heading }}>
+            <h2 className="text-2xl font-bold text-foreground">
               Featured Projects
             </h2>
             <div className="grid gap-6 md:grid-cols-2">
@@ -297,7 +320,6 @@ export default function ProfilePage({ params }) {
                 <Card
                   key={project.id}
                   className="p-6 flex flex-col h-full hover:shadow-lg transition-shadow"
-                  style={{ backgroundColor: theme.card, color: theme.text }}
                 >
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
@@ -311,21 +333,24 @@ export default function ProfilePage({ params }) {
                         }
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xl font-semibold hover:underline"
-                        style={{ color: theme.primary }}
+                        className="text-xl font-semibold hover:underline text-primary"
+                        style={accentStyle}
                       >
                         {project.name}
                       </a>
-                      <div className="flex items-center space-x-3 text-sm opacity-80">
+                      <div className="flex items-center space-x-3 text-sm text-muted-foreground">
                         <span className="flex items-center"><Star className="w-4 h-4 mr-1"/> {project.stargazers_count || 0}</span>
                         <span className="flex items-center"><GitFork className="w-4 h-4 mr-1"/> {project.forks_count || 0}</span>
                       </div>
                     </div>
-                    <p className="opacity-90 mb-4">{project.description || "No description provided."}</p>
+                    <p className="text-muted-foreground mb-4">{project.description || "No description provided."}</p>
                   </div>
                   {project.language && (
-                    <div className="mt-4 pt-4 border-t" style={{ borderColor: `${theme.text}1A` }}>
-                      <span className="text-sm font-medium px-2 py-1 rounded" style={{ backgroundColor: `${theme.primary}1A`, color: theme.primary }}>
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <span
+                        className="text-sm font-medium px-2 py-1 rounded bg-primary/10 text-primary"
+                        style={accentBgStyle}
+                      >
                         {project.language}
                       </span>
                     </div>
@@ -339,13 +364,19 @@ export default function ProfilePage({ params }) {
         {/* Profile README */}
         {profile?.generatedReadme && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold" style={{ color: theme.heading }}>
+            <h2 className="text-2xl font-bold text-foreground">
               About
             </h2>
-            <Card className="p-8 overflow-hidden" style={{ backgroundColor: theme.card, color: theme.text }}>
+            <Card className="p-8 overflow-hidden">
               <ProfileReadmePreview
                 content={profile.generatedReadme}
-                theme={theme}
+                theme={{
+                  primary: accentColor || "#3b82f6",
+                  background: isDark ? "#0a0f1a" : "#ffffff",
+                  card: isDark ? "#111827" : "#f8fafc",
+                  text: isDark ? "#e2e8f0" : "#1e293b",
+                  heading: isDark ? "#f1f5f9" : "#0f172a",
+                }}
               />
             </Card>
           </div>

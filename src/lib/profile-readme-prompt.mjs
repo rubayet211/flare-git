@@ -74,7 +74,9 @@ Rules:
 - Never invent achievements, employers, projects, technologies, metrics, links, or contact details.
 - Never claim proficiency levels that are not explicitly supplied.
 - Use GitHub-compatible Markdown and only common Profile README HTML such as centered divs and details blocks.
-- Keep widgets useful and limited. Avoid duplicate statistics, excessive badges, broken URLs, and visual clutter.
+- Do not use github-readme-stats.vercel.app, GitHub stats card images, top-language card images, or any third-party stats widgets. They are unreliable and render as broken images when unavailable.
+- Show GitHub stats and language distribution as plain Markdown lists or tables using only verified data.
+- Keep visuals useful and limited. Avoid duplicate statistics, excessive badges, broken URLs, and visual clutter.
 - Return only the final README Markdown with no surrounding code fence or commentary.`;
 
   const userPrompt = `Refine this GitHub Profile README using the ${style.label} style.

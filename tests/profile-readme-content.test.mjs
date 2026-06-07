@@ -20,3 +20,22 @@ test("preserves internal code fences", () => {
 
   assert.equal(normalizeProfileReadme(content), content);
 });
+
+test("removes unreliable GitHub stats card widgets", () => {
+  const content = `
+# About
+
+<p align="center">
+  <img src="https://github-readme-stats.vercel.app/api?username=octocat&show_icons=true" alt="GitHub Stats" />
+  ![Top Languages](https://github-readme-stats.vercel.app/api/top-langs/?username=octocat&layout=compact)
+</p>
+
+Still here.
+`;
+
+  const normalized = normalizeProfileReadme(content);
+
+  assert.doesNotMatch(normalized, /github-readme-stats/);
+  assert.doesNotMatch(normalized, /GitHub Stats|Top Languages/);
+  assert.match(normalized, /Still here\./);
+});

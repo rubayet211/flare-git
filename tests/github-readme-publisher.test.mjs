@@ -59,7 +59,7 @@ test("creates the profile repository when it does not exist before publishing RE
     {
       name: "octocat",
       private: false,
-      auto_init: false,
+      auto_init: true,
       description: "GitHub profile README for octocat",
       headers: {
         "X-GitHub-Api-Version": "2026-03-10",
@@ -107,4 +107,91 @@ test("updates an existing profile README using the current file sha", async () =
     false
   );
   assert.equal(calls[2][1].sha, "abc123");
+});
+
+test("removes unreliable stats widgets before publishing a profile README", async () => {
+  const calls = [];
+  const octokit = {
+    rest: {
+      repos: {
+        get: async (args) => calls.push(["get", args]),
+        createForAuthenticatedUser: async (args) =>
+          calls.push(["createForAuthenticatedUser", args]),
+        getContent: async (args) => {
+          calls.push(["getContent", args]);
+          return { data: { sha: "abc123" } };
+        },
+        createOrUpdateFileContents: async (args) => {
+          calls.push(["createOrUpdateFileContents", args]);
+          return { data: { content: { html_url: "https://github.com/octocat/octocat/blob/main/README.md" } } };
+        },
+      },
+    },
+  };
+
+  await publishProfileReadme({
+    octokit,
+    username: "octocat",
+    content: `# Octocat
+
+![GitHub Stats](https://github-readme-stats.vercel.app/api?username=octocat&show_icons=true)
+
+Still here.`,
+  });
+
+  const publishCall = calls.find(
+    ([name]) => name === "createOrUpdateFileContents"
+  );
+  const publishedContent = Buffer.from(
+    publishCall[1].content,
+    "base64"
+  ).toString("utf8");
+
+  assert.doesNotMatch(publishedContent, /github-readme-stats/);
+  assert.doesNotMatch(publishedContent, /GitHub Stats/);
+  assert.match(publishedContent, /Still here\./);
+});
+
+test("makes an existing private profile README repository public before publishing", async () => {
+  const calls = [];
+  const octokit = {
+    rest: {
+      repos: {
+        get: async (args) => {
+          calls.push(["get", args]);
+          return { data: { private: true } };
+        },
+        update: async (args) => calls.push(["update", args]),
+        createForAuthenticatedUser: async (args) =>
+          calls.push(["createForAuthenticatedUser", args]),
+        getContent: async (args) => {
+          calls.push(["getContent", args]);
+          return { data: { sha: "abc123" } };
+        },
+        createOrUpdateFileContents: async (args) => {
+          calls.push(["createOrUpdateFileContents", args]);
+          return { data: { content: { html_url: "https://github.com/octocat/octocat/blob/main/README.md" } } };
+        },
+      },
+    },
+  };
+
+  await publishProfileReadme({
+    octokit,
+    username: "octocat",
+    content: "# Public profile",
+  });
+
+  const updateCall = calls.find(([name]) => name === "update");
+  assert.deepEqual(updateCall, [
+    "update",
+    {
+      owner: "octocat",
+      repo: "octocat",
+      private: false,
+      headers: {
+        "X-GitHub-Api-Version": "2026-03-10",
+      },
+    },
+  ]);
 });
