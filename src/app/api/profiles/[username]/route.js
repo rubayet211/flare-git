@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { GitHubService } from "@/lib/github";
 import { buildPortfolioData } from "@/lib/portfolio-data.mjs";
 
+const TELEMETRY_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
 export async function GET(request, { params }) {
   try {
     const { username } = params;
@@ -35,10 +37,32 @@ export async function GET(request, { params }) {
     }
 
     const githubAccessToken = profile.user.accounts[0]?.access_token;
-    const githubData = await getPublicGitHubData(
-      profile.githubUsername,
-      githubAccessToken
-    );
+
+    // Use cached telemetry if fresh (< 15 min old)
+    let githubData;
+    const isCacheFresh =
+      profile.lastTelemetryUpdate &&
+      Date.now() - new Date(profile.lastTelemetryUpdate).getTime() < TELEMETRY_TTL_MS;
+
+    if (isCacheFresh && profile.githubTelemetry) {
+      githubData = profile.githubTelemetry;
+    } else {
+      githubData = await getPublicGitHubData(
+        profile.githubUsername,
+        githubAccessToken
+      );
+
+      // Persist cache before responding so serverless runtimes cannot drop it.
+      if (githubData && Object.keys(githubData).length > 0) {
+        await prisma.profile.update({
+          where: { id: profile.id },
+          data: {
+            githubTelemetry: githubData,
+            lastTelemetryUpdate: new Date(),
+          },
+        });
+      }
+    }
 
     // Transform the data to include user details and public portfolio data.
     const profileData = {

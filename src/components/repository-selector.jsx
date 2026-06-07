@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 
 export function RepositorySelector({ open, onOpenChange, onSelect }) {
   const { data: session } = useSession();
+  const username = session?.user?.username;
   const [repositories, setRepositories] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -22,17 +23,18 @@ export function RepositorySelector({ open, onOpenChange, onSelect }) {
 
   useEffect(() => {
     const fetchRepositories = async () => {
-      if (!session?.user?.username) {
-        console.log("No username found in session:", session);
+      if (!username) {
+        console.log("No username found in session");
+        setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
         setError(null);
-        console.log("Fetching repositories for:", session.user.username);
+        console.log("Fetching repositories for:", username);
         const response = await fetch(
-          `/api/github/repositories/${session.user.username}`
+          `/api/github/repositories/${username}`
         );
 
         if (!response.ok) {
@@ -53,7 +55,7 @@ export function RepositorySelector({ open, onOpenChange, onSelect }) {
     if (open) {
       fetchRepositories();
     }
-  }, [open, session?.user?.username]);
+  }, [open, username]);
 
   const filteredRepositories = repositories.filter((repo) =>
     repo.name.toLowerCase().includes(searchQuery.toLowerCase())

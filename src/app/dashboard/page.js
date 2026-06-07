@@ -54,40 +54,9 @@ export default function Dashboard() {
     aiGeneratedBio: "",
   });
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin");
-    }
-  }, [status, router]);
+  const fetchProfile = useCallback(async () => {
+    if (!session?.user?.id) return;
 
-  useEffect(() => {
-    if (session?.user?.id) {
-      fetchProfile();
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (profile?.githubUsername) {
-      fetchRepositories();
-    }
-  }, [profile?.githubUsername]);
-
-  useEffect(() => {
-    if (profile) {
-      setFormData({
-        customUrl: profile.customUrl || "",
-        location: profile.location || "",
-        website: profile.website || "",
-        twitter: profile.twitter || "",
-        linkedin: profile.linkedin || "",
-        specialization: profile.specialization || "",
-        aiGeneratedBio: profile.aiGeneratedBio || "",
-      });
-      setTheme(profile.customTheme || defaultTheme);
-    }
-  }, [profile]);
-
-  const fetchProfile = async () => {
     try {
       const response = await fetch(`/api/profile/${session.user.id}`);
       const data = await response.json();
@@ -102,9 +71,11 @@ export default function Dashboard() {
       });
       setLoading(false);
     }
-  };
+  }, [session?.user?.id, toast]);
 
-  const fetchRepositories = async () => {
+  const fetchRepositories = useCallback(async () => {
+    if (!profile?.githubUsername) return;
+
     setLoadingRepos(true);
     try {
       const response = await fetch(
@@ -127,7 +98,40 @@ export default function Dashboard() {
     } finally {
       setLoadingRepos(false);
     }
-  };
+  }, [profile?.githubUsername, toast]);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchProfile();
+    }
+  }, [session?.user?.id, fetchProfile]);
+
+  useEffect(() => {
+    if (profile?.githubUsername) {
+      fetchRepositories();
+    }
+  }, [profile?.githubUsername, fetchRepositories]);
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        customUrl: profile.customUrl || "",
+        location: profile.location || "",
+        website: profile.website || "",
+        twitter: profile.twitter || "",
+        linkedin: profile.linkedin || "",
+        specialization: profile.specialization || "",
+        aiGeneratedBio: profile.aiGeneratedBio || "",
+      });
+      setTheme(profile.customTheme || defaultTheme);
+    }
+  }, [profile]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

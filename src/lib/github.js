@@ -106,26 +106,34 @@ export class GitHubService {
   async getLanguages(username) {
     try {
       const repos = await this.getRepositories(username);
+
+      // Limit to top 15 most recently updated repos to avoid rate limits
+      const topRepos = repos.slice(0, 15);
       const languages = {};
 
-      await Promise.all(
-        repos.map(async (repo) => {
-          try {
-            const { data } = await this.octokit.rest.repos.listLanguages(
-              withGitHubApiVersion({
-                owner: username,
-                repo: repo.name,
-              })
-            );
+      // Concurrency limiter: max 5 concurrent requests
+      const concurrency = 5;
+      for (let i = 0; i < topRepos.length; i += concurrency) {
+        const batch = topRepos.slice(i, i + concurrency);
+        await Promise.all(
+          batch.map(async (repo) => {
+            try {
+              const { data } = await this.octokit.rest.repos.listLanguages(
+                withGitHubApiVersion({
+                  owner: username,
+                  repo: repo.name,
+                })
+              );
 
-            Object.entries(data).forEach(([lang, bytes]) => {
-              languages[lang] = (languages[lang] || 0) + bytes;
-            });
-          } catch (error) {
-            console.error(`Error fetching languages for ${repo.name}:`, error);
-          }
-        })
-      );
+              Object.entries(data).forEach(([lang, bytes]) => {
+                languages[lang] = (languages[lang] || 0) + bytes;
+              });
+            } catch (error) {
+              console.error(`Error fetching languages for ${repo.name}:`, error);
+            }
+          })
+        );
+      }
 
       // Convert bytes to percentages
       const total = Object.values(languages).reduce((a, b) => a + b, 0);
@@ -275,11 +283,17 @@ export class GitHubService {
 
   async getRepositoryFiles(owner, repo) {
     try {
+      // Dynamically resolve the default branch
+      const { data: repoData } = await this.octokit.rest.repos.get(
+        withGitHubApiVersion({ owner, repo })
+      );
+      const defaultBranch = repoData.default_branch;
+
       const { data: tree } = await this.octokit.rest.git.getTree(
         withGitHubApiVersion({
           owner,
           repo,
-          tree_sha: "main", // Try main branch first
+          tree_sha: defaultBranch,
           recursive: true,
         })
       );
@@ -302,42 +316,22 @@ export class GitHubService {
         }));
     } catch (error) {
       if (error.status === 404) {
-        // Try 'master' branch if 'main' doesn't exist
-        try {
-          const { data: tree } = await this.octokit.rest.git.getTree(
-            withGitHubApiVersion({
-              owner,
-              repo,
-              tree_sha: "master",
-              recursive: true,
-            })
-          );
-
-          return tree.tree
-            .filter(
-              (file) =>
-                file.type === "blob" &&
-                file.size < 1000000 &&
-                !file.path.match(
-                  /\.(jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$/i
-                )
-            )
-            .map((file) => ({
-              path: file.path,
-              size: file.size,
-              type: file.type,
-              url: file.url,
-            }));
-        } catch (masterError) {
-          return []; // Return empty array if neither branch exists
-        }
+        return []; // Return empty array if repo not found
       }
       throw error;
     }
   }
 
-  async updateRepositoryReadme(owner, repo, content) {
+  async updateRepositoryReadme(owner, repo, content, branch) {
     try {
+      // Resolve branch if not provided
+      if (!branch) {
+        const { data: repoData } = await this.octokit.rest.repos.get(
+          withGitHubApiVersion({ owner, repo })
+        );
+        branch = repoData.default_branch;
+      }
+
       // First, try to get the current README to get its SHA
       let sha;
       try {
@@ -346,6 +340,7 @@ export class GitHubService {
             owner,
             repo,
             path: "README.md",
+            ref: branch,
           })
         );
         sha = data.sha;
@@ -353,7 +348,7 @@ export class GitHubService {
         // If README doesn't exist, sha will remain undefined
       }
 
-      // Update or create the README
+      // Update or create the README on the specified branch
       await this.octokit.rest.repos.createOrUpdateFileContents(
         withGitHubApiVersion({
           owner,
@@ -362,6 +357,7 @@ export class GitHubService {
           message: "Update README.md via FlareGit",
           content: Buffer.from(content).toString("base64"),
           sha, // Will create new file if sha is undefined
+          branch,
         })
       );
     } catch (error) {

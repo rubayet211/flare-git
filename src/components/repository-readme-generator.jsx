@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { getGitHubRepositoryUrl } from "@/lib/github-url.mjs";
 
 // Custom components for ReactMarkdown
@@ -303,7 +304,7 @@ export function RepositoryReadmeGenerator() {
               <div className="prose prose-sm max-w-none overflow-y-auto p-4 dark:prose-invert">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw]}
+                  rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}
                   components={MarkdownComponents}
                 >
                   {content}

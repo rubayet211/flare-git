@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getContrastRatio } from "@/lib/utils";
 
 export async function GET(request, { params }) {
   try {
@@ -108,22 +109,55 @@ export async function PUT(request, { params }) {
         );
       }
 
-      // 4. Collision check against customUrl and githubUsername
-      const existing = await prisma.profile.findFirst({
+      // 4. Collision check against other users' custom URLs and GitHub usernames
+      const profilesToCheck = await prisma.profile.findMany({
         where: {
-          OR: [
-            { githubUsername: { equals: customUrl, mode: "insensitive" } },
-            { customUrl: { equals: customUrl, mode: "insensitive" } },
-          ],
           NOT: { userId },
         },
+        select: {
+          githubUsername: true,
+          customUrl: true,
+        },
       });
+      const normalizedCustomUrl = customUrl.toLowerCase();
+      const hasCollision = profilesToCheck.some((profile) =>
+        [profile.githubUsername, profile.customUrl].some(
+          (value) => value?.toLowerCase() === normalizedCustomUrl
+        )
+      );
 
-      if (existing) {
+      if (hasCollision) {
         return new NextResponse(
           JSON.stringify({ error: "This profile URL is already taken." }),
           { status: 400 }
         );
+      }
+    }
+
+    // Server-side WCAG contrast validation
+    if (data.customTheme) {
+      const { text, heading, background } = data.customTheme;
+      if (text && background) {
+        const textContrast = getContrastRatio(text, background);
+        if (textContrast < 2.5) {
+          return new NextResponse(
+            JSON.stringify({
+              error: `Text color contrast ratio is too low (${textContrast.toFixed(2)}:1). Minimum 2.5:1 required.`,
+            }),
+            { status: 400 }
+          );
+        }
+      }
+      if (heading && background) {
+        const headingContrast = getContrastRatio(heading, background);
+        if (headingContrast < 2.5) {
+          return new NextResponse(
+            JSON.stringify({
+              error: `Heading color contrast ratio is too low (${headingContrast.toFixed(2)}:1). Minimum 2.5:1 required.`,
+            }),
+            { status: 400 }
+          );
+        }
       }
     }
 
