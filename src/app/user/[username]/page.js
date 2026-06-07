@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { ProfileReadmePreview } from "@/components/profile-readme-preview";
-import { Github, Twitter, Linkedin, Globe, Star, GitFork } from "lucide-react";
+import {
+  Github,
+  Twitter,
+  Linkedin,
+  Globe,
+  Star,
+  GitFork,
+  BookOpen,
+} from "lucide-react";
+import { getGitHubRepositoryUrl } from "@/lib/github-url.mjs";
 
 const defaultTheme = {
   primary: "#3b82f6",
@@ -23,9 +31,6 @@ export default function ProfilePage({ params }) {
       try {
         const response = await fetch(`/api/profiles/${params.username}`);
         if (!response.ok) {
-          if (response.status === 404) {
-            notFound();
-          }
           throw new Error("Failed to fetch profile");
         }
         const data = await response.json();
@@ -52,7 +57,30 @@ export default function ProfilePage({ params }) {
     );
   }
 
+  if (!profile) {
+    return (
+      <div className="container mx-auto flex min-h-screen items-center justify-center py-10">
+        <Card className="max-w-md p-8 text-center">
+          <Github className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">Profile not found</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            This portfolio is not published yet or the username is incorrect.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
   const theme = profile?.customTheme || defaultTheme;
+  const portfolio = profile?.portfolio || {};
+  const portfolioProjects =
+    Array.isArray(portfolio.projects) && portfolio.projects.length > 0
+      ? portfolio.projects
+      : profile?.featuredProjects || [];
+  const portfolioStats = portfolio.stats || {};
+  const languages = Array.isArray(portfolio.languages)
+    ? portfolio.languages
+    : [];
 
   return (
     <div
@@ -154,6 +182,57 @@ export default function ProfilePage({ params }) {
 
         {/* Stats */}
         <div className="mb-12 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card
+            className="p-6"
+            style={{ backgroundColor: theme.card, color: theme.text }}
+          >
+            <div className="flex items-center gap-3">
+              <BookOpen className="h-5 w-5" style={{ color: theme.primary }} />
+              <div>
+                <p className="text-sm opacity-75">Repositories</p>
+                <p
+                  className="text-2xl font-semibold"
+                  style={{ color: theme.heading }}
+                >
+                  {portfolioStats.totalRepos || portfolioProjects.length || 0}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card
+            className="p-6"
+            style={{ backgroundColor: theme.card, color: theme.text }}
+          >
+            <div className="flex items-center gap-3">
+              <Star className="h-5 w-5" style={{ color: theme.primary }} />
+              <div>
+                <p className="text-sm opacity-75">Stars</p>
+                <p
+                  className="text-2xl font-semibold"
+                  style={{ color: theme.heading }}
+                >
+                  {portfolioStats.totalStars || 0}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card
+            className="p-6"
+            style={{ backgroundColor: theme.card, color: theme.text }}
+          >
+            <div className="flex items-center gap-3">
+              <GitFork className="h-5 w-5" style={{ color: theme.primary }} />
+              <div>
+                <p className="text-sm opacity-75">Forks</p>
+                <p
+                  className="text-2xl font-semibold"
+                  style={{ color: theme.heading }}
+                >
+                  {portfolioStats.totalForks || 0}
+                </p>
+              </div>
+            </div>
+          </Card>
           {profile?.githubUsername && (
             <Card
               className="p-6 col-span-full overflow-hidden"
@@ -171,14 +250,50 @@ export default function ProfilePage({ params }) {
           )}
         </div>
 
+        {languages.length > 0 && (
+          <div className="mb-12 space-y-4">
+            <h2 className="text-2xl font-bold" style={{ color: theme.heading }}>
+              Languages
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {languages.slice(0, 8).map((language) => (
+                <Card
+                  key={language.name}
+                  className="p-4"
+                  style={{ backgroundColor: theme.card, color: theme.text }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium">{language.name}</span>
+                    <span className="text-sm opacity-75">
+                      {language.percentage}%
+                    </span>
+                  </div>
+                  <div
+                    className="mt-3 h-2 overflow-hidden rounded-full"
+                    style={{ backgroundColor: `${theme.text}1A` }}
+                  >
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${language.percentage}%`,
+                        backgroundColor: theme.primary,
+                      }}
+                    />
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Projects Section */}
-        {profile?.featuredProjects && profile.featuredProjects.length > 0 && (
+        {portfolioProjects.length > 0 && (
           <div className="space-y-6 mb-12">
             <h2 className="text-2xl font-bold" style={{ color: theme.heading }}>
               Featured Projects
             </h2>
             <div className="grid gap-6 md:grid-cols-2">
-              {profile.featuredProjects.map((project) => (
+              {portfolioProjects.map((project) => (
                 <Card
                   key={project.id}
                   className="p-6 flex flex-col h-full hover:shadow-lg transition-shadow"
@@ -187,7 +302,13 @@ export default function ProfilePage({ params }) {
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
                       <a 
-                        href={project.html_url}
+                        href={
+                          project.url ||
+                          getGitHubRepositoryUrl(
+                            project,
+                            profile.githubUsername
+                          )
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xl font-semibold hover:underline"

@@ -1,4 +1,5 @@
 import { Octokit } from "octokit";
+import { withGitHubApiVersion } from "./github-api-version.mjs";
 
 export class GitHubService {
   constructor(accessToken) {
@@ -10,11 +11,13 @@ export class GitHubService {
 
   async getRepositories(username) {
     try {
-      const { data } = await this.octokit.rest.repos.listForAuthenticatedUser({
-        sort: "updated",
-        per_page: 100,
-        affiliation: "owner",
-      });
+      const { data } = await this.octokit.rest.repos.listForAuthenticatedUser(
+        withGitHubApiVersion({
+          sort: "updated",
+          per_page: 100,
+          affiliation: "owner",
+        })
+      );
 
       return data.map((repo) => ({
         id: repo.id,
@@ -108,10 +111,12 @@ export class GitHubService {
       await Promise.all(
         repos.map(async (repo) => {
           try {
-            const { data } = await this.octokit.rest.repos.listLanguages({
-              owner: username,
-              repo: repo.name,
-            });
+            const { data } = await this.octokit.rest.repos.listLanguages(
+              withGitHubApiVersion({
+                owner: username,
+                repo: repo.name,
+              })
+            );
 
             Object.entries(data).forEach(([lang, bytes]) => {
               languages[lang] = (languages[lang] || 0) + bytes;
@@ -224,15 +229,19 @@ export class GitHubService {
 
   async getTrafficStats(username, repoName) {
     try {
-      const { data: views } = await this.octokit.rest.repos.getViews({
-        owner: username,
-        repo: repoName,
-      });
+      const { data: views } = await this.octokit.rest.repos.getViews(
+        withGitHubApiVersion({
+          owner: username,
+          repo: repoName,
+        })
+      );
 
-      const { data: clones } = await this.octokit.rest.repos.getClones({
-        owner: username,
-        repo: repoName,
-      });
+      const { data: clones } = await this.octokit.rest.repos.getClones(
+        withGitHubApiVersion({
+          owner: username,
+          repo: repoName,
+        })
+      );
 
       return {
         views: views.views || [],
@@ -246,13 +255,15 @@ export class GitHubService {
 
   async getRepositoryReadme(owner, repo) {
     try {
-      const { data } = await this.octokit.rest.repos.getReadme({
-        owner,
-        repo,
-        mediaType: {
-          format: "raw",
-        },
-      });
+      const { data } = await this.octokit.rest.repos.getReadme(
+        withGitHubApiVersion({
+          owner,
+          repo,
+          mediaType: {
+            format: "raw",
+          },
+        })
+      );
       return data;
     } catch (error) {
       if (error.status === 404) {
@@ -264,12 +275,14 @@ export class GitHubService {
 
   async getRepositoryFiles(owner, repo) {
     try {
-      const { data: tree } = await this.octokit.rest.git.getTree({
-        owner,
-        repo,
-        tree_sha: "main", // Try main branch first
-        recursive: true,
-      });
+      const { data: tree } = await this.octokit.rest.git.getTree(
+        withGitHubApiVersion({
+          owner,
+          repo,
+          tree_sha: "main", // Try main branch first
+          recursive: true,
+        })
+      );
 
       // Filter out binary files and large files
       return tree.tree
@@ -291,12 +304,14 @@ export class GitHubService {
       if (error.status === 404) {
         // Try 'master' branch if 'main' doesn't exist
         try {
-          const { data: tree } = await this.octokit.rest.git.getTree({
-            owner,
-            repo,
-            tree_sha: "master",
-            recursive: true,
-          });
+          const { data: tree } = await this.octokit.rest.git.getTree(
+            withGitHubApiVersion({
+              owner,
+              repo,
+              tree_sha: "master",
+              recursive: true,
+            })
+          );
 
           return tree.tree
             .filter(
@@ -326,25 +341,29 @@ export class GitHubService {
       // First, try to get the current README to get its SHA
       let sha;
       try {
-        const { data } = await this.octokit.rest.repos.getContent({
-          owner,
-          repo,
-          path: "README.md",
-        });
+        const { data } = await this.octokit.rest.repos.getContent(
+          withGitHubApiVersion({
+            owner,
+            repo,
+            path: "README.md",
+          })
+        );
         sha = data.sha;
       } catch (error) {
         // If README doesn't exist, sha will remain undefined
       }
 
       // Update or create the README
-      await this.octokit.rest.repos.createOrUpdateFileContents({
-        owner,
-        repo,
-        path: "README.md",
-        message: "Update README.md via FlareGit",
-        content: Buffer.from(content).toString("base64"),
-        sha, // Will create new file if sha is undefined
-      });
+      await this.octokit.rest.repos.createOrUpdateFileContents(
+        withGitHubApiVersion({
+          owner,
+          repo,
+          path: "README.md",
+          message: "Update README.md via FlareGit",
+          content: Buffer.from(content).toString("base64"),
+          sha, // Will create new file if sha is undefined
+        })
+      );
     } catch (error) {
       console.error("Error updating README:", error);
       throw error;

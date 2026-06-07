@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, Code, Copy, Download, CheckCircle2, Github, Loader2, Sparkles, Save } from "lucide-react";
 import { ProfileReadmePreview } from "@/components/profile-readme-preview";
+import { buildGitHubProfileUrl } from "@/lib/github-url.mjs";
 
 const GENERATION_STYLES = [
   {
@@ -51,6 +52,7 @@ export function ReadmeEditor({ profile, onSaved }) {
   const [isPreview, setIsPreview] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStyle, setGenerationStyle] = useState("professional");
   const [hasUnsavedDraft, setHasUnsavedDraft] = useState(false);
@@ -101,11 +103,9 @@ export function ReadmeEditor({ profile, onSaved }) {
   };
 
   const handleViewOnGitHub = () => {
-    if (profile?.githubUsername) {
-      window.open(
-        `https://github.com/${profile.githubUsername}/${profile.githubUsername}`,
-        "_blank"
-      );
+    const profileUrl = buildGitHubProfileUrl(profile?.githubUsername);
+    if (profileUrl) {
+      window.open(profileUrl, "_blank");
     }
   };
 
@@ -152,6 +152,54 @@ export function ReadmeEditor({ profile, onSaved }) {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePublishToGitHub = async () => {
+    if (!content.trim()) {
+      toast({
+        title: "README is empty",
+        description: "Add README content before setting it on GitHub.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsPublishing(true);
+    try {
+      const response = await fetch("/api/github/profile-readme", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Failed to publish Profile README to GitHub"
+        );
+      }
+
+      toast({
+        title: "Published to GitHub",
+        description:
+          "Your GitHub profile README has been created or updated.",
+      });
+      if (data.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (error) {
+      console.error("Error publishing Profile README:", error);
+      toast({
+        title: "Error",
+        description:
+          error.message || "Failed to publish Profile README to GitHub",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -265,7 +313,7 @@ export function ReadmeEditor({ profile, onSaved }) {
             variant="outline"
             size="sm"
             onClick={handleGenerate}
-            disabled={isGenerating || isSaving}
+            disabled={isGenerating || isSaving || isPublishing}
             className="border-purple-500 hover:bg-purple-500/10 text-purple-600 dark:text-purple-400"
           >
             {isGenerating ? (
@@ -278,21 +326,39 @@ export function ReadmeEditor({ profile, onSaved }) {
           <Button
             size="sm"
             onClick={handleSave}
-            disabled={isGenerating || isSaving}
+            disabled={isGenerating || isSaving || isPublishing}
           >
             {isSaving ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            Save README
+            Save to FlareGit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePublishToGitHub}
+            disabled={isGenerating || isSaving || isPublishing}
+          >
+            {isPublishing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Github className="mr-2 h-4 w-4" />
+            )}
+            {isPublishing ? "Publishing..." : "Set on GitHub"}
           </Button>
           {hasUnsavedDraft && (
             <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
               Unsaved changes
             </span>
           )}
-          <Button variant="outline" size="sm" onClick={handleCopy} disabled={isGenerating}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopy}
+            disabled={isGenerating || isPublishing}
+          >
             {isCopied ? (
               <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
             ) : (
@@ -300,11 +366,21 @@ export function ReadmeEditor({ profile, onSaved }) {
             )}
             Copy
           </Button>
-          <Button variant="outline" size="sm" onClick={handleDownload} disabled={isGenerating}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownload}
+            disabled={isGenerating || isPublishing}
+          >
             <Download className="mr-2 h-4 w-4" />
             Download
           </Button>
-          <Button variant="outline" size="sm" onClick={handleViewOnGitHub} disabled={isGenerating}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleViewOnGitHub}
+            disabled={isGenerating || isPublishing}
+          >
             <Github className="mr-2 h-4 w-4" />
             View on GitHub
           </Button>
@@ -343,7 +419,8 @@ export function ReadmeEditor({ profile, onSaved }) {
         </h3>
         <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
           <li>Use Improve with AI to refine your current content without discarding your voice.</li>
-          <li>Click **Save README** to update the about section of your public FlareGit profile.</li>
+          <li>Click Save to FlareGit to update the about section of your public FlareGit profile.</li>
+          <li>Click Set on GitHub to publish this content to your GitHub profile README repository.</li>
           <li>Include key skills, links, badges, and project callouts.</li>
           <li>Make manual adjustments in the editor to make it truly personal before copying it to your GitHub profile repo.</li>
         </ul>

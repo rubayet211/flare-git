@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { GitHubService } from "@/lib/github";
+import { buildPortfolioData } from "@/lib/portfolio-data.mjs";
 
 export async function GET(request, { params }) {
   try {
@@ -15,6 +17,12 @@ export async function GET(request, { params }) {
             name: true,
             email: true,
             image: true,
+            accounts: {
+              where: { provider: "github" },
+              select: {
+                access_token: true,
+              },
+            },
           },
         },
       },
@@ -26,12 +34,19 @@ export async function GET(request, { params }) {
       });
     }
 
-    // Transform the data to include user details
+    const githubAccessToken = profile.user.accounts[0]?.access_token;
+    const githubData = await getPublicGitHubData(
+      profile.githubUsername,
+      githubAccessToken
+    );
+
+    // Transform the data to include user details and public portfolio data.
     const profileData = {
       ...profile,
       name: profile.user.name,
       email: profile.user.email,
       image: profile.user.image,
+      portfolio: buildPortfolioData(profile, githubData),
     };
     delete profileData.user;
 
@@ -42,5 +57,28 @@ export async function GET(request, { params }) {
       JSON.stringify({ error: "Internal Server Error" }),
       { status: 500 }
     );
+  }
+}
+
+async function getPublicGitHubData(username, accessToken) {
+  if (!username || !accessToken) {
+    return {};
+  }
+
+  try {
+    const githubService = new GitHubService(accessToken);
+    const [repositories, languages, stats, contributions, trends] =
+      await Promise.all([
+        githubService.getRepositories(username),
+        githubService.getLanguages(username),
+        githubService.getRepositoryStats(username),
+        githubService.getContributions(username),
+        githubService.getContributionTrends(username),
+      ]);
+
+    return { repositories, languages, stats, contributions, trends };
+  } catch (error) {
+    console.error("Error enriching public portfolio:", error);
+    return {};
   }
 }
