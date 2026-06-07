@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getGitHubAccessToken } from "@/lib/auth";
 import { GitHubService } from "@/lib/github";
 
 export async function POST(request, { params }) {
@@ -13,11 +13,19 @@ export async function POST(request, { params }) {
     }
 
     const { username, repo } = params;
-    const accessToken = session.accessToken;
 
+    // Enforce repository ownership
+    if (session.user.username !== username) {
+      return new NextResponse(
+        JSON.stringify({ error: "Forbidden: You do not own this repository." }),
+        { status: 403 }
+      );
+    }
+
+    const accessToken = await getGitHubAccessToken(session.user.id);
     if (!accessToken) {
       return new NextResponse(
-        JSON.stringify({ error: "GitHub token not found" }),
+        JSON.stringify({ error: "GitHub access token not found. Please log in again." }),
         { status: 401 }
       );
     }
@@ -35,11 +43,10 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error updating repository README:", error);
+    console.error("Error updating repository README in API route:", error);
     return new NextResponse(
       JSON.stringify({
-        error: "Internal Server Error",
-        details: error.message,
+        error: "Failed to push README update to GitHub.",
       }),
       { status: 500 }
     );

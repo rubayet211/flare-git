@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RepositorySelector } from "@/components/repository-selector";
-import { Eye, Code, Copy, Download, CheckCircle2, Github } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { Eye, Code, Copy, Download, CheckCircle2, Github, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import { getGitHubRepositoryUrl } from "@/lib/github-url.mjs";
 
 // Custom components for ReactMarkdown
 const MarkdownComponents = {
@@ -92,6 +94,7 @@ export function RepositoryReadmeGenerator() {
   const [content, setContent] = useState("");
   const [isPreview, setIsPreview] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSavingToGitHub, setIsSavingToGitHub] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const { toast } = useToast();
 
@@ -166,6 +169,7 @@ export function RepositoryReadmeGenerator() {
   const handleSaveToGitHub = async () => {
     if (!selectedRepo) return;
 
+    setIsSavingToGitHub(true);
     try {
       const response = await fetch(
         `/api/github/repositories/${session.user.username}/${selectedRepo.name}/update-readme`,
@@ -176,7 +180,10 @@ export function RepositoryReadmeGenerator() {
         }
       );
 
-      if (!response.ok) throw new Error("Failed to update README");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to update README");
+      }
 
       toast({
         title: "Success!",
@@ -186,9 +193,11 @@ export function RepositoryReadmeGenerator() {
       console.error("Error updating README:", error);
       toast({
         title: "Error",
-        description: "Failed to update README on GitHub",
+        description: error.message || "Failed to update README on GitHub",
         variant: "destructive",
       });
+    } finally {
+      setIsSavingToGitHub(false);
     }
   };
 
@@ -212,7 +221,10 @@ export function RepositoryReadmeGenerator() {
             </div>
             <Button variant="outline" size="sm" asChild>
               <a
-                href={selectedRepo.html_url}
+                href={getGitHubRepositoryUrl(
+                  selectedRepo,
+                  session?.user?.username
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -253,7 +265,12 @@ export function RepositoryReadmeGenerator() {
               </Button>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleCopy}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopy}
+                disabled={isSavingToGitHub}
+              >
                 {isCopied ? (
                   <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
                 ) : (
@@ -261,11 +278,24 @@ export function RepositoryReadmeGenerator() {
                 )}
                 Copy
               </Button>
-              <Button variant="outline" size="sm" onClick={handleDownload}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownload}
+                disabled={isSavingToGitHub}
+              >
                 <Download className="mr-2 h-4 w-4" />
                 Download
               </Button>
-              <Button onClick={handleSaveToGitHub}>Save to GitHub</Button>
+              <Button
+                onClick={handleSaveToGitHub}
+                disabled={isSavingToGitHub}
+              >
+                {isSavingToGitHub && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {isSavingToGitHub ? "Saving..." : "Save to GitHub"}
+              </Button>
             </div>
           </div>
 
@@ -274,7 +304,7 @@ export function RepositoryReadmeGenerator() {
               <div className="prose prose-sm max-w-none overflow-y-auto p-4 dark:prose-invert">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw]}
+                  rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}
                   components={MarkdownComponents}
                 >
                   {content}
@@ -297,7 +327,7 @@ export function RepositoryReadmeGenerator() {
             Select a repository to get started
           </h3>
           <p className="text-sm text-muted-foreground">
-            We'll analyze your repository and generate an enhanced README.md
+            We&apos;ll analyze your repository and generate an enhanced README.md
             file
           </p>
         </Card>

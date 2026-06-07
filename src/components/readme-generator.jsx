@@ -3,7 +3,7 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Loader2, RefreshCw, Download, Github } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -349,7 +349,7 @@ export function ReadmeGenerator() {
                   }
 
                   .readme-preview a {
-                    color: #58a6ff;
+                    color: hsl(var(--primary));
                     text-decoration: none;
                   }
 
@@ -440,7 +440,7 @@ export function ReadmeGenerator() {
                   }
 
                   :root[class~="dark"] .readme-preview a {
-                    color: #58a6ff;
+                    color: hsl(var(--primary));
                   }
 
                   :root[class~="dark"] .readme-preview code {

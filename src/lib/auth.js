@@ -1,6 +1,7 @@
 import GithubProvider from "next-auth/providers/github";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
+import { persistGitHubAccountCredentials } from "@/lib/github-account.mjs";
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
@@ -8,7 +9,11 @@ export const authOptions = {
     GithubProvider({
       clientId: process.env.GITHUB_ID,
       clientSecret: process.env.GITHUB_SECRET,
-      scope: "read:user user:email repo",
+      authorization: {
+        params: {
+          scope: "read:user user:email repo",
+        },
+      },
       profile(profile) {
         return {
           id: profile.id.toString(),
@@ -24,6 +29,7 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, account, profile, user }) {
       if (account) {
+        await persistGitHubAccountCredentials(prisma, account);
         token.accessToken = account.access_token;
         token.provider = account.provider;
         token.username = profile.login;
@@ -39,8 +45,6 @@ export const authOptions = {
         session.user.id = token.id;
         session.user.username = token.username;
         session.user.bio = token.bio;
-        session.accessToken = token.accessToken;
-        session.provider = token.provider;
       }
       return session;
     },
@@ -153,3 +157,19 @@ export const authOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 };
+
+export async function getGitHubAccessToken(userId) {
+  if (!userId) return null;
+  try {
+    const account = await prisma.account.findFirst({
+      where: {
+        userId,
+        provider: "github",
+      },
+    });
+    return account?.access_token || null;
+  } catch (error) {
+    console.error("Error retrieving GitHub access token from DB:", error);
+    return null;
+  }
+}

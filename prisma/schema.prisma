@@ -69,9 +69,13 @@ model Profile {
     customizations   Json?
     seoMetadata      Json?
     generatedReadme  String?
-    lastReadmeUpdate DateTime?
-    createdAt        DateTime      @default(now())
-    updatedAt        DateTime      @updatedAt
+    aiGeneratedBio   String?
+    specialization      String?
+    lastReadmeUpdate    DateTime?
+    githubTelemetry     Json?
+    lastTelemetryUpdate DateTime?
+    createdAt           DateTime      @default(now())
+    updatedAt           DateTime      @updatedAt
 }
 
 model Testimonial {

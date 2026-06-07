@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getGitHubAccessToken } from "@/lib/auth";
 import { GitHubProfileAnalyzer } from "@/lib/github-profile-analyzer";
 import { AIReadmeGenerator } from "@/lib/ai-readme-generator";
 import { prisma } from "@/lib/prisma";
@@ -22,7 +22,7 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { preferences } = body;
+    const { preferences = {}, existingReadme = "" } = body;
 
     // Get the user's profile from the database
     const profile = await prisma.profile.findUnique({
@@ -48,16 +48,17 @@ export async function POST(req) {
     }
 
     // Check if we have a valid GitHub access token
-    if (!session.accessToken) {
+    const accessToken = await getGitHubAccessToken(session.user.id);
+    if (!accessToken) {
       return new Response(
-        JSON.stringify({ error: "GitHub access token not found" }),
+        JSON.stringify({ error: "GitHub access token not found. Please log in again." }),
         { status: 401 }
       );
     }
 
     try {
       // Initialize the GitHub profile analyzer with the access token
-      const analyzer = new GitHubProfileAnalyzer(session.accessToken);
+      const analyzer = new GitHubProfileAnalyzer(accessToken);
 
       // Collect GitHub data
       const githubData = await analyzer.collectProfileData(
@@ -68,12 +69,17 @@ export async function POST(req) {
       const combinedProfileData = {
         github: githubData,
         flaregit: {
+          githubUsername: profile.githubUsername,
           customUrl: profile.customUrl,
+          bio: profile.bio,
+          aiGeneratedBio: profile.aiGeneratedBio,
+          specialization: profile.specialization,
           location: profile.location,
           website: profile.website,
           twitter: profile.twitter,
           linkedin: profile.linkedin,
           theme: profile.customTheme,
+          featuredProjects: profile.featuredProjects,
         },
         user: {
           name: profile.user.name,
@@ -91,21 +97,13 @@ export async function POST(req) {
       // Generate the README
       const readme = await generator.generateReadme(
         combinedProfileData,
-        preferences
+        preferences,
+        existingReadme
       );
 
       if (!readme) {
         throw new Error("No README content was generated");
       }
-
-      // Save the generated README to the profile
-      await prisma.profile.update({
-        where: { userId: session.user.id },
-        data: {
-          generatedReadme: readme,
-          lastReadmeUpdate: new Date(),
-        },
-      });
 
       return new Response(JSON.stringify({ readme }), {
         status: 200,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -12,23 +13,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Github, LogOut, User } from "lucide-react";
+import { Github, LogOut, User, Menu, X } from "lucide-react";
 
 export function MainNav() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
+  const [isOpen, setIsOpen] = useState(false);
 
   const isActive = (path) => pathname === path;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
-        <div className="mr-4 flex">
+        <div className="mr-4 flex items-center">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <Github className="h-6 w-6" />
-            <span className="hidden font-bold sm:inline-block">FlareGit</span>
+            <span className="font-bold inline-block">FlareGit</span>
           </Link>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
+          <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
             <Link
               href="/"
               className={`transition-colors hover:text-foreground/80 ${
@@ -51,7 +53,7 @@ export function MainNav() {
             )}
           </nav>
         </div>
-        <div className="ml-auto flex items-center space-x-4">
+        <div className="ml-auto flex items-center space-x-2 md:space-x-4">
           <ThemeToggle />
           {status === "loading" ? (
             <Button variant="ghost" size="sm" disabled>
@@ -109,7 +111,7 @@ export function MainNav() {
                   <Link href="/dashboard">Dashboard</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={`/u/${session.user.username}`}>View Profile</Link>
+                  <Link href={`/user/${session.user.username}`}>View Profile</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -131,8 +133,56 @@ export function MainNav() {
               <Link href="/auth/signin">Sign In</Link>
             </Button>
           )}
+
+          {/* Mobile hamburger toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            <span className="sr-only">Toggle Menu</span>
+          </Button>
         </div>
       </div>
+
+      {/* Mobile Drawer Overlay */}
+      {isOpen && (
+        <div className="fixed inset-x-0 top-14 z-50 h-[calc(100vh-3.5rem)] overflow-y-auto border-b bg-background p-6 shadow-md animate-in slide-in-from-top-24 duration-200 md:hidden">
+          <nav className="grid gap-4 text-sm font-medium">
+            <Link
+              href="/"
+              className={`flex items-center rounded-md p-2 hover:bg-muted ${
+                isActive("/") ? "text-foreground font-semibold" : "text-foreground/60"
+              }`}
+              onClick={() => setIsOpen(false)}
+            >
+              Home
+            </Link>
+            {session && (
+              <Link
+                href="/dashboard"
+                className={`flex items-center rounded-md p-2 hover:bg-muted ${
+                  isActive("/dashboard") ? "text-foreground font-semibold" : "text-foreground/60"
+                }`}
+                onClick={() => setIsOpen(false)}
+              >
+                Dashboard
+              </Link>
+            )}
+            {!session && (
+              <Link
+                href="/auth/signin"
+                className="flex items-center rounded-md p-2 hover:bg-muted text-foreground/60"
+                onClick={() => setIsOpen(false)}
+              >
+                Sign In
+              </Link>
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
